@@ -63,11 +63,11 @@ void MX_CAN1_Init(void)
 {
 
   hcan1.Instance = CAN1;
-  hcan1.Init.Prescaler = 54;
+  hcan1.Init.Prescaler = 18;
   hcan1.Init.Mode = CAN_MODE_NORMAL;
   hcan1.Init.SJW = CAN_SJW_1TQ;
-  hcan1.Init.BS1 = CAN_BS1_4TQ;
-  hcan1.Init.BS2 = CAN_BS2_5TQ;
+  hcan1.Init.BS1 = CAN_BS1_5TQ;
+  hcan1.Init.BS2 = CAN_BS2_6TQ;
   hcan1.Init.TTCM = DISABLE;
   hcan1.Init.ABOM = DISABLE;
   hcan1.Init.AWUM = DISABLE;

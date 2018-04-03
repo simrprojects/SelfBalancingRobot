@@ -71,6 +71,7 @@ int Controler_Init(void){
 	if(MPU6050_Init(&controler.hmpu,&mpuhw,&mpucfg)){
 		return 4;
 	}
+	//tworze w¹tek kontrolera
 	xTaskCreate(Controler_Task,"controller",256,&controler,5,&controler.task);
 	return 0;
 }

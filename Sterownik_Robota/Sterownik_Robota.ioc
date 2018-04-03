@@ -1,10 +1,10 @@
 #MicroXplorer Configuration settings - do not modify
-CAN1.BS1=CAN_BS1_4TQ
-CAN1.BS2=CAN_BS2_5TQ
-CAN1.CalculateTimeBit=10000
-CAN1.CalculateTimeQuantum=1000.0
+CAN1.BS1=CAN_BS1_5TQ
+CAN1.BS2=CAN_BS2_6TQ
+CAN1.CalculateTimeBit=4000
+CAN1.CalculateTimeQuantum=333.33333333333337
 CAN1.IPParameters=CalculateTimeQuantum,CalculateTimeBit,BS1,Prescaler,BS2
-CAN1.Prescaler=54
+CAN1.Prescaler=18
 CORTEX_M7.CPU_DCache=Enabled
 CORTEX_M7.CPU_ICache=Enabled
 CORTEX_M7.IPParameters=CPU_ICache,CPU_DCache
