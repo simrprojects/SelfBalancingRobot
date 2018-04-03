@@ -4,7 +4,7 @@
   * @author  Przemek
   * @version V1.0.0
   * @date    03.04.2018
-  * @brief   Modu³ g³ównego sterownika robota
+  * @brief   Moduï¿½ gï¿½ï¿½wnego sterownika robota
   ******************************************************************************
   */
 
@@ -33,7 +33,7 @@ tControler controler;
 void Controler_Task(void* ptr);
 /* Public  functions ---------------------------------------------------------*/
 /**
-  * @brief  Funkcja inicjuje g³ówny kontroler ruchu robota
+  * @brief  Funkcja inicjuje gï¿½ï¿½wny kontroler ruchu robota
   * @param[in]  None
   * @retval None
   */
@@ -43,16 +43,16 @@ int Controler_Init(void){
 	tCanInit cfg;
 	tCAN2UARTConfig c2uc;
 	tMotorInterfaceConfig mic;
-	//inicjuje modu³ CAN
+	//inicjuje moduï¿½ CAN
 	cfg.rxBufferSize=30;
 	OSCan_Init(&hcan1,&cfg);
-	//inicjuje modu³ UART2CAN
+	//inicjuje moduï¿½ UART2CAN
 	c2uc.canFifoNumber=1;
 	c2uc.maxNumberOfChannels=3;
 	if(CAN2UART_Init(&controler.c2uf,&c2uc)){
 		return 1;
 	}
-	//inicjuje modu³ interfejsu silników
+	//inicjuje moduï¿½ interfejsu silnikï¿½w
 	mic.c2u = controler.c2uf;
 	mic.canId = 1;
 	mic.numPolePairs = 15;
@@ -67,17 +67,18 @@ int Controler_Init(void){
 	if(MotorInterface_Init(&controler.rightMotor,&mic)){
 		return 3;
 	}
-	//inicjuje modu³ MPU
+	//inicjuje moduï¿½ MPU
+	mpucfg.queueDepth = 24;
 	if(MPU6050_Init(&controler.hmpu,&mpuhw,&mpucfg)){
 		return 4;
 	}
-	//tworze w¹tek kontrolera
+	//tworze wï¿½tek kontrolera
 	xTaskCreate(Controler_Task,"controller",256,&controler,5,&controler.task);
 	return 0;
 }
 /* Private functions ---------------------------------------------------------*/
 /**
-  * @brief  W¹tek kontrolera ruchu
+  * @brief  Wï¿½tek kontrolera ruchu
   * @param[in]  None
   * @retval None
   */

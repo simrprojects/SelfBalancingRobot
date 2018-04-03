@@ -14,6 +14,7 @@
 #include "queue.h"
 #include "MPU/MPU6050.h"
 #include "MPU/inv_mpu.h"
+#include "DISCOVERY/uart.h"
 #include "MPU/inv_mpu_dmp_motion_driver.h"
 #include "math.h"
 #include "stdio.h"
@@ -76,6 +77,7 @@ int MPU6050_UpdateFromISR(tMPUHandler h, unsigned int timestamp){
 			/* zgłaszam koniecznośc przełączenia wątków */
 			taskYIELD();
 	}
+	return 0;
 }
 /**
   * @brief  Funkcja odczytuje dane jeden rekord pomiarowy z bufora odbiorczego modułu
@@ -120,7 +122,7 @@ void MPU6050_ReadDMPFIFO(tMPU6050 *mpu){
 	unsigned long sensor_timestamp;
     short gyro[3], accel[3], sensors;
     unsigned char more;
-    long quat[4];
+    long long int quat[4];
     char b[64];
     float quatf[4];
 
@@ -234,7 +236,9 @@ int MPU6050_DMPConfig(tMPU6050 *mpu){
 	 */
 	uart_putstring("Wlaczenie DMP...\n");
 	if(0==mpu_set_dmp_state(1)) uart_putstring("OK \r\n");
+	return 0;
 }
+
 
 
 
