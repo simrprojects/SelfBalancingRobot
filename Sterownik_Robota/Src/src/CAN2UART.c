@@ -40,7 +40,6 @@ typedef struct{
 /* Private function prototypes -----------------------------------------------*/
 void CAN2UART_RxTask(tCAN2UARTHandle h);
 void CAN2UART_TxTask(tCAN2UARTChannelRef h);
-void CAN2UART_Error(char* errorDescription);
 /* Public  functions ---------------------------------------------------------*/
 /**
   * @brief  Funkcja inicjuje modu³, tworzy w¹tek odbiorczy odbieraj¹cy ramki.
@@ -217,5 +216,13 @@ void CAN2UART_TxTask(tCAN2UARTChannelRef h){
 			}
 		}
 	}
+}
+/**
+  * @brief  Funkcja typu callBack zg³aszana w momencie pojawienia siê b³edów
+  * @param[in]  None
+  * @retval None
+  */
+__weak void CAN2UART_Error(char* errorDescription){
+
 }
 

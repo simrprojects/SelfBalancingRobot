@@ -9,20 +9,11 @@
   */
 
 /* Includes ------------------------------------------------------------------*/
-#include "CAN2UART.h"
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
+#include "MotorInterface.h"
 /* Private typedef -----------------------------------------------------------*/
-typedef void* tMotorInterfaceHandler;
-typedef enum{eInactiveMode=0,eActiveMode}tMotorInterfaceMode;
-typedef struct{
-	int canId;
-	int numPolePairs;
-	int reversMode;/**<tryb pracy odwróconej*/
-	tCAN2UARTHandle c2u;
-}tMotorInterfaceConfig;
-
 typedef struct{
 	xTaskHandle task;
 	tCAN2UARTChannelRef com;
@@ -52,7 +43,6 @@ void MotorInterface_Task(void* ptr);
 void MotorInterface_SendMessage(tCAN2UARTChannelRef *ch,char id,void *data,int dataSize);
 int  MotorInterface_Parse(tMotorInterface *mi,char c);
 void MotorInterface_ParseNewMeasurement(tMotorInterface *mi,char* buffer,int size);
-void MotorInterface_NewMotorState(tMotorInterfaceHandler h,tMotorInterfaceMode mode);
 /* Public  functions ---------------------------------------------------------*/
 /**
   * @brief  Funkcja inicuje jedn¹ instancjê silnika, z którym komunikacja odbywa siê poprzez magistralê UART/CAN

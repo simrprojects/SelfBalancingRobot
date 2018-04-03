@@ -52,17 +52,14 @@
 #include "cmsis_os.h"
 
 /* USER CODE BEGIN Includes */     
-#include "MPU/rx_data.h"
-#include "MPU/MPU6050.h"
-#include "OSCan.h"
-#include "can.h"
+#include "Controler.h"
 /* USER CODE END Includes */
 
 /* Variables -----------------------------------------------------------------*/
 osThreadId defaultTaskHandle;
 
 /* USER CODE BEGIN Variables */
-tMPUHandler hmpu;
+
 /* USER CODE END Variables */
 
 /* Function prototypes -------------------------------------------------------*/
@@ -117,14 +114,7 @@ void StartDefaultTask(void const * argument)
   MX_FATFS_Init();
 
   /* USER CODE BEGIN StartDefaultTask */
-  tMPUHardwareSetting mpuhw;
-  tMPUConfiguration mpucfg;
-  tCanInit cfg;
-  //inicjuje modu³ CAN
-  cfg.rxBufferSize=30;
-  OSCan_Init(&hcan1,&cfg);
-  //inicjuje modu³ MPU
-  MPU6050_Init(&hmpu,&mpuhw,&mpucfg);
+  Controler_Init();
   /* Infinite loop */
   for(;;)
   {

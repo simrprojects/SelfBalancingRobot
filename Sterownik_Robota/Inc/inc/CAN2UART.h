@@ -28,4 +28,6 @@ int CAN2UART_CreateChannel(tCAN2UARTHandle h,tCAN2UARTChannelRef *chRef,tCAN2UAR
 int CAN2UART_Receive(tCAN2UARTChannelRef h,char* data,int timeout);
 int CAN2UART_Transmit(tCAN2UARTChannelRef h,void* data,int dataSize,int timeout);
 
+void CAN2UART_Error(char* errorDescription);
+
 #endif /* INC_CAN2UART_H_ */
