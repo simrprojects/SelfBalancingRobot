@@ -63,7 +63,6 @@
 	   <include>..\Drivers\STM32F7xx_HAL_Driver\Inc\Legacy</include>
 	   <include>..\Middlewares\Third_Party\FreeRTOS\Source\portable\GCC\ARM_CM7\r0p1</include>
 	   <include>..\Drivers\CMSIS\Device\ST\STM32F7xx\Include</include>
-	   <include>..\Middlewares\Third_Party\FatFs\src</include>
 	   <include>..\Middlewares\Third_Party\FreeRTOS\Source\include</include>
 	   <include>..\Middlewares\Third_Party\FreeRTOS\Source\CMSIS_RTOS</include>
 	   <include>..\Drivers\CMSIS\Include</include>

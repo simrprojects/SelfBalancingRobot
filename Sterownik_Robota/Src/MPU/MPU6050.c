@@ -110,6 +110,8 @@ void MPU6050_Thread(tMPUHandler h){
 		if(xQueueReceive(mpu->syncQueue,&hwTimestamp,100)==pdTRUE){
 			//odebrał╩em rozkaz, odczytuje dane z fifo MPU
 			MPU6050_ReadDMPFIFO(mpu);
+			//ładuje pomiar do kolejki
+			xQueueSend(mpu->measurementQueue,&mpu->measurement,5);
 		}
 	}
 }
@@ -124,24 +126,31 @@ void MPU6050_ReadDMPFIFO(tMPU6050 *mpu){
     short gyro[3], accel[3], sensors;
     unsigned char more;
     long long int quat[4];
-    float quatf[4];
+    float quatf[4],quat2[4];
+    float roll, pitch, yaw;
 
-	if( !dmp_read_fifo(gyro, accel, quat, &sensor_timestamp, &sensors,&more) )
-	{
-		double x = (pow(quat[0],2) + pow(quat[1],2) + pow(quat[2],2) + pow(quat[3],2));
+	if( !dmp_read_fifo(gyro, accel, quat, &sensor_timestamp, &sensors,&more) ){
+		//wyliczam kwadraty
+		quat2[0] = quat[0]*quat[0];
+		quat2[1] = quat[1]*quat[1];
+		quat2[2] = quat[2]*quat[2];
+		quat2[3] = quat[3]*quat[3];
 
-			double d = sqrt( x );
+			float d = sqrtf( quat2[0]+quat2[1]+quat2[2]+quat2[3] );
 
 			for(uint8_t i=0; i<=3;i++)
 			{
 				quatf[i] = quat[i]/d;
 			}
+			quat2[0] = quatf[0]*quatf[0];
+			quat2[1] = quatf[1]*quatf[1];
+			quat2[2] = quatf[2]*quatf[2];
+			quat2[3] = quatf[3]*quatf[3];
 
-			double roll, pitch, yaw;
 
-			roll = 57.2*atan2f( -2*quatf[1]*quatf[3] + 2*quatf[0]*quatf[2] , pow(quatf[3],2) - pow(quatf[2],2) - pow(quatf[1],2) + pow(quatf[0],2) );
+			roll = 57.2*atan2f( -2*quatf[1]*quatf[3] + 2*quatf[0]*quatf[2] , quat2[3] - quat2[2] - quat2[1] + quat2[0] );
 			pitch = 57.2*asinf(2*quatf[2]*quatf[3]+2*quatf[0]*quatf[1]);
-		    yaw = 57.2*atan2f( -2*quatf[1]*quatf[2] + 2*quatf[0]*quatf[3] , pow(quatf[2],2) - pow(quatf[3],2) - pow(quatf[1],2) + pow(quatf[0],2) );
+		    yaw = 57.2*atan2f( -2*quatf[1]*quatf[2] + 2*quatf[0]*quatf[3] , quat2[2] - quat2[3] - quat2[1] + quat2[0] );
 
 		    mpu->measurement.acceleration[0]=accel[0];
 		    mpu->measurement.acceleration[1]=accel[1];
@@ -200,9 +209,14 @@ int MPU6050_DMPConfig(tMPU6050 *mpu){
 	/*
 	 * dmp firmware loading
 	 */
-	int a = dmp_load_motion_driver_firmware();
-	if(a){
-		return a;//bład ładowania firmwareu
+	int c=3,r;
+	do{
+		c--;
+		r=dmp_load_motion_driver_firmware();
+		vTaskDelay(1);
+	}while(r!=0 && c>0);
+	if(r){
+		return r;//bład ładowania firmwareu
 	}
 	/*
 	 * zapisywanie macierzy orientacji (czujnika w ukladzie ?)

@@ -55,7 +55,6 @@ void CAN1_SCE_IRQHandler(void);
 void TIM1_UP_TIM10_IRQHandler(void);
 void I2C1_EV_IRQHandler(void);
 void TIM6_DAC_IRQHandler(void);
-void DMA2_Stream0_IRQHandler(void);
 void DMA2_Stream4_IRQHandler(void);
 void DMA2_Stream7_IRQHandler(void);
 

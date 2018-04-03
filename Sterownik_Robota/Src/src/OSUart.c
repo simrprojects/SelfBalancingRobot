@@ -19,16 +19,27 @@
 #include "queue.h"
 /* Private typedef -----------------------------------------------------------*/
 /**\define 
- *\brief definicja aktywuje lub deaktywuje wsparcie dla wielowątkowego wsparcia dla 
- *       dostępu do portu komuniakcyjnego. Należy ustawić 1 gdy więcej niż jeden task będzie 
+ *\brief definicja aktywuje lub deaktywuje wsparcie dla wielowątkowego wsparcia dla
+ *       dostępu do portu komuniakcyjnego. Należy ustawić 1 gdy więcej niż jeden task będzie
  *       chciał dostępu do tego zasobu
  */
 #define OSUART_REENTRANT	0
 
 typedef struct{
+  __IO uint32_t ISR;   /*!< DMA interrupt status register */
+  __IO uint32_t Reserved0;
+  __IO uint32_t IFCR;  /*!< DMA interrupt flag clear register */
+	} OS_DMA_Base_Registers;
+
+typedef struct{
 	QueueHandle_t msg;
 	QueueHandle_t rx;
 	UART_HandleTypeDef *uart;
+	USART_TypeDef			 *uart_ref;
+	DMA_Stream_TypeDef *dmaTx;
+	DMA_Stream_TypeDef *dmaRx;
+	OS_DMA_Base_Registers *baseDMA;
+	unsigned int StreamIndex;
 }tOSUart;
 
 
@@ -62,6 +73,11 @@ int OsUART_Init(OsUARTHandler* h,UART_HandleTypeDef *uart){
 	osUsartTab[id].rx = xQueueCreate(100,sizeof(char));
 	//inicjuje zmienne
 	osUsartTab[id].uart = uart;
+	osUsartTab[id].uart_ref = uart->Instance;
+	osUsartTab[id].dmaTx = uart->hdmatx->Instance;
+	osUsartTab[id].dmaRx = uart->hdmarx->Instance;
+	osUsartTab[id].baseDMA = (OS_DMA_Base_Registers *)uart->hdmatx->StreamBaseAddress;
+	osUsartTab[id].StreamIndex = uart->hdmatx->StreamIndex;
 	//zwracam uchwyt
 	*h = &osUsartTab[id];
 	//uruchamiam odbiornik
@@ -92,13 +108,31 @@ int OsUART_Receive(OsUARTHandler h,char *pData,int timeout){
   */
 int OsUART_Transmit(OsUARTHandler h,uint8_t *pData,int dataSize,int timeout){
 	if(timeout==0){
-		//HAL_UART_Transmit_DMA(HUART->uart,pData,dataSize);
-		//HAL_DMA_Abort(HUART->uart->hdmatx);
-		//__HAL_UNLOCK(HUART->uart->hdmatx);
-		//HUART->uart->hdmatx->State = HAL_DMA_STATE_READY;
-//		CLEAR_BIT(HUART->uart->Instance->CR3, USART_CR3_DMAT);
-//		HAL_DMA_Start_IT(HUART->uart->hdmatx, (int)pData, (uint32_t)&HUART->uart->Instance->TDR, dataSize);
-//		SET_BIT(HUART->uart->Instance->CR3, USART_CR3_DMAT);
+		//DMA1->HIFCR=0xFFFFFFFF;
+		//DMA1->LIFCR=0xFFFFFFFF;
+		//zeruje flagi statusu, o dziwno konieczne
+		HUART->baseDMA->IFCR = 0x3FU << HUART->StreamIndex;
+			/* Clear DBM bit */
+		HUART->dmaTx->CR &= (uint32_t)(~DMA_SxCR_DBM);
+
+		/* Configure DMA Stream data length */
+		HUART->dmaTx->NDTR = dataSize;
+
+		/* Configure DMA Stream source address */
+		HUART->dmaTx->PAR = (uint32_t)&HUART->uart_ref->TDR;
+
+		/* Configure DMA Stream destination address */
+		HUART->dmaTx->M0AR = (uint32_t)pData;
+
+		/* Enable the Peripheral */
+		HUART->dmaTx->CR |=  DMA_SxCR_EN;
+
+		/* Clear the TC flag in the SR register by writing 0 to it */
+		HUART->uart_ref->ISR = ~UART_FLAG_TC;
+		/* Enable the DMA transfer for transmit request by setting the DMAT bit
+		   in the UART CR3 register */
+		SET_BIT(HUART->uart_ref->CR3, USART_CR3_DMAT);
+
 		return 0;
 	}else{
 		return HAL_UART_Transmit(HUART->uart,pData,dataSize,timeout);
@@ -126,12 +160,14 @@ int OsUart_GetId(UART_HandleTypeDef *uart){
 		return 5;
 	}else if(uart->Instance == USART1){
 		return 0;
+	}else if(uart->Instance == USART3){
+		return 2;
 	}else{
 		return -1;
 	}
 }
 /**
-  * @brief  Funkcja przerwania od UARTA2
+  * @brief  Funkcja przerwania od UARTA1
   * @param  None
   * @retval None
   */
@@ -182,5 +218,31 @@ void USART2_IRQHandler(void)
 		}
 	}
 	USART2->ISR = 0;
+}
+/**
+  * @brief  Funkcja przerwania od UARTA2
+  * @param  None
+  * @retval None
+  */
+void USART3_IRQHandler(void)
+{
+	BaseType_t xHigherPriorityTaskWoken;
+	char cIn;
+
+	if(USART3->ISR&(0x1<<5)){
+
+		/* We have not woken a task at the start of the ISR. */
+		xHigherPriorityTaskWoken = pdFALSE;
+		cIn = USART3->RDR;
+		xQueueSendFromISR( osUsartTab[2].rx, &cIn, &xHigherPriorityTaskWoken );
+
+		/* Now the buffer is empty we can switch context if necessary. */
+		if( xHigherPriorityTaskWoken )
+		{
+				/* Actual macro used here is port specific. */
+				taskYIELD();
+		}
+	}
+	USART3->ISR = 0;
 }
 

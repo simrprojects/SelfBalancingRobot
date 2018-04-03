@@ -76,8 +76,6 @@
 #define ULPI_D7_GPIO_Port GPIOB
 #define uSD_D3_Pin GPIO_PIN_4
 #define uSD_D3_GPIO_Port GPIOB
-#define uSD_D2_Pin GPIO_PIN_3
-#define uSD_D2_GPIO_Port GPIOB
 #define uSD_CMD_Pin GPIO_PIN_7
 #define uSD_CMD_GPIO_Port GPIOD
 #define WIFI_RX_Pin GPIO_PIN_12

@@ -65,15 +65,20 @@
      PE3   ------> SAI1_SD_B
      PG14   ------> ETH_TXD1
      PB5   ------> USB_OTG_HS_ULPI_D7
+     PB4   ------> SDMMC2_D3
+     PD7   ------> SDMMC2_CMD
      PC12   ------> UART5_TX
      PE5   ------> SAI1_SCK_A
      PE6   ------> SAI1_SD_A
      PG13   ------> ETH_TXD0
      PB7   ------> I2C4_SDA
      PG11   ------> ETH_TX_EN
+     PD6   ------> SDMMC2_CK
      PC11   ------> S_DATAIN5DFSDM1
      PG12   ------> SPDIFRX_IN1
+     PG10   ------> SDMMC2_D1
      PD3   ------> S_CKOUTDFSDM1
+     PG9   ------> SDMMC2_D0
      PD2   ------> UART5_RX
      PI11   ------> USB_OTG_HS_ULPI_DIR
      PC7   ------> USART6_RX
@@ -152,6 +157,22 @@ void MX_GPIO_Init(void)
   HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
 
   /*Configure GPIO pin : PtPin */
+  GPIO_InitStruct.Pin = uSD_D3_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  GPIO_InitStruct.Alternate = GPIO_AF10_SDMMC2;
+  HAL_GPIO_Init(uSD_D3_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PDPin PDPin */
+  GPIO_InitStruct.Pin = uSD_CMD_Pin|uSD_CLK_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  GPIO_InitStruct.Alternate = GPIO_AF11_SDMMC2;
+  HAL_GPIO_Init(GPIOD, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PtPin */
   GPIO_InitStruct.Pin = WIFI_RX_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
@@ -204,6 +225,14 @@ void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   GPIO_InitStruct.Alternate = GPIO_AF7_SPDIFRX;
   HAL_GPIO_Init(SPDIF_RX_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PGPin PGPin */
+  GPIO_InitStruct.Pin = uSD_D1_Pin|uSD_D0_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
+  GPIO_InitStruct.Alternate = GPIO_AF11_SDMMC2;
+  HAL_GPIO_Init(GPIOG, &GPIO_InitStruct);
 
   /*Configure GPIO pins : PDPin PDPin */
   GPIO_InitStruct.Pin = RMII_RXER_Pin|OTG_FS_OverCurrent_Pin;
