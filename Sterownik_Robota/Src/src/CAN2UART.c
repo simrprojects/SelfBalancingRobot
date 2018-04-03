@@ -58,6 +58,7 @@ int CAN2UART_Init(tCAN2UARTHandle *h,tCAN2UARTConfig *cfg){
 	c2u->channelArray = pvPortMalloc(sizeof(tCAN2UARTChannel)*cfg->maxNumberOfChannels);
 	//inicjuje w¹tek
 	xTaskCreate(CAN2UART_RxTask,"can2uart",256,c2u,4,&c2u->task);
+	*h = c2u;
 	return 0;
 }
 /**
