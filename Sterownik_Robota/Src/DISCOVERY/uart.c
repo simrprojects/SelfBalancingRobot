@@ -68,8 +68,10 @@ volatile uint8_t Uart_TxTail;
 
 char uart_getchar(void)
 {
+	/*
 	if(Uart_RxHead == Uart_RxTail) return -1;
 	Uart_RxTail = (Uart_RxTail + 1) & UART_RX_BUF_MASK;
+	*/
 	return UART_Rx_Buf[Uart_RxTail];
 }
 
@@ -92,14 +94,14 @@ char* uart_getstring(char *buf)
 
 void uart_putchar(char c)
 {
-	uint8_t tmp_head;
+	/*uint8_t tmp_head;
 
 	tmp_head = (Uart_TxHead + 1) & UART_TX_BUF_MASK;
 	while(tmp_head == Uart_TxTail){}
 
 	UART_Tx_Buf[tmp_head] = c;
 	Uart_TxHead = tmp_head;
-
+*/
 
 }
 

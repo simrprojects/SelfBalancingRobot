@@ -212,6 +212,9 @@
 
 #define DMP_CODE_SIZE           (3062)
 
+extern int get_ms(unsigned long *count);
+extern void __no_operation(void);
+
 static const unsigned char dmp_memory[DMP_CODE_SIZE] = {
     /* bank # 0 */
     0x00, 0x00, 0x70, 0x00, 0x00, 0x00, 0x00, 0x24, 0x00, 0x00, 0x00, 0x02, 0x00, 0x03, 0x00, 0x00,

@@ -63,7 +63,7 @@ void dmp_rx_parse(void)
 	unsigned long sensor_timestamp;
     short gyro[3], accel[3], sensors;
     unsigned char more;
-    long quat[4];
+    long long int quat[4];
     char b[64];
     float quatf[4];
 

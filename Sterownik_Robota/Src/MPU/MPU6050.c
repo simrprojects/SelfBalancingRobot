@@ -58,6 +58,7 @@ int MPU6050_Init(tMPUHandler *handler,tMPUHardwareSetting *hwSettings,tMPUConfig
 	mpu->syncQueue = xQueueCreate(20,sizeof(int));
 	//inicjuje wątek przetwarzający
 	xTaskCreate(MPU6050_Thread,"MPU",256,mpu,5,&mpu->task);
+	*handler = mpu;
 	return 0;
 }
 /**
@@ -108,7 +109,7 @@ void MPU6050_Thread(tMPUHandler h){
 		//czekam na rozkaz z kolejki
 		if(xQueueReceive(mpu->syncQueue,&hwTimestamp,100)==pdTRUE){
 			//odebrał╩em rozkaz, odczytuje dane z fifo MPU
-
+			MPU6050_ReadDMPFIFO(mpu);
 		}
 	}
 }
@@ -123,7 +124,6 @@ void MPU6050_ReadDMPFIFO(tMPU6050 *mpu){
     short gyro[3], accel[3], sensors;
     unsigned char more;
     long long int quat[4];
-    char b[64];
     float quatf[4];
 
 	if( !dmp_read_fifo(gyro, accel, quat, &sensor_timestamp, &sensors,&more) )
@@ -138,29 +138,23 @@ void MPU6050_ReadDMPFIFO(tMPU6050 *mpu){
 			}
 
 			double roll, pitch, yaw;
-			char buf[40] = "Y,";
 
-			roll = 57.2*atan2( -2*quatf[1]*quatf[3] + 2*quatf[0]*quatf[2] , pow(quatf[3],2) - pow(quatf[2],2) - pow(quatf[1],2) + pow(quatf[0],2) );
-			sprintf(b, "%2.2f", roll);
-			strcat(buf,b);
-			strcat(buf,",");
+			roll = 57.2*atan2f( -2*quatf[1]*quatf[3] + 2*quatf[0]*quatf[2] , pow(quatf[3],2) - pow(quatf[2],2) - pow(quatf[1],2) + pow(quatf[0],2) );
+			pitch = 57.2*asinf(2*quatf[2]*quatf[3]+2*quatf[0]*quatf[1]);
+		    yaw = 57.2*atan2f( -2*quatf[1]*quatf[2] + 2*quatf[0]*quatf[3] , pow(quatf[2],2) - pow(quatf[3],2) - pow(quatf[1],2) + pow(quatf[0],2) );
 
+		    mpu->measurement.acceleration[0]=accel[0];
+		    mpu->measurement.acceleration[1]=accel[1];
+		    mpu->measurement.acceleration[2]=accel[2];
 
-			pitch = 57.2*asin(2*quatf[2]*quatf[3]+2*quatf[0]*quatf[1]);
-			sprintf(b, "%2.2f", pitch);
-		//        	uart_putstring(b);
-		//        	uart_putstring("; ");
-			strcat(buf,b);
-			strcat(buf,",");
+		    mpu->measurement.omega[0]=gyro[0];
+		    mpu->measurement.omega[1]=gyro[1];
+		    mpu->measurement.omega[2]=gyro[2];
+		    mpu->measurement.rpy[0]=roll;
+		    mpu->measurement.rpy[1]=pitch;
+		    mpu->measurement.rpy[2]=yaw;
+		    mpu->measurement.timestamp = sensor_timestamp;
 
-		    yaw = 57.2*atan2( -2*quatf[1]*quatf[2] + 2*quatf[0]*quatf[3] , pow(quatf[2],2) - pow(quatf[3],2) - pow(quatf[1],2) + pow(quatf[0],2) );
-		    sprintf(b, "%2.2f", yaw);
-		//  uart_putstring(b);
-		//  uart_putstring("; ");
-		    strcat(buf,b);
-		    strcat(buf,"\r\n");
-
-		    uart_putstring(buf);
 	}
 }
 

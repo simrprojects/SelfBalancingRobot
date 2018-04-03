@@ -52,13 +52,18 @@
 #include "cmsis_os.h"
 #include "can.h"
 #include "dma.h"
+#include "dma2d.h"
+#include "dsihost.h"
 #include "fatfs.h"
 #include "i2c.h"
+#include "ltdc.h"
+#include "quadspi.h"
 #include "sdmmc.h"
 #include "spi.h"
 #include "tim.h"
 #include "usart.h"
 #include "gpio.h"
+#include "fmc.h"
 
 /* USER CODE BEGIN Includes */
 #include "stm32f769i_discovery_sdram.h"
@@ -124,6 +129,11 @@ int main(void)
   MX_USART1_UART_Init();
   MX_I2C1_Init();
   MX_SPI5_Init();
+  MX_FMC_Init();
+  MX_QUADSPI_Init();
+  MX_DMA2D_Init();
+  MX_DSIHOST_DSI_Init();
+  MX_LTDC_Init();
 
   /* USER CODE BEGIN 2 */
   BSP_SDRAM_Init();
@@ -201,8 +211,15 @@ void SystemClock_Config(void)
     _Error_Handler(__FILE__, __LINE__);
   }
 
-  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_USART1|RCC_PERIPHCLK_I2C1
-                              |RCC_PERIPHCLK_SDMMC2|RCC_PERIPHCLK_CLK48;
+  PeriphClkInitStruct.PeriphClockSelection = RCC_PERIPHCLK_LTDC|RCC_PERIPHCLK_USART1
+                              |RCC_PERIPHCLK_I2C1|RCC_PERIPHCLK_SDMMC2
+                              |RCC_PERIPHCLK_CLK48;
+  PeriphClkInitStruct.PLLSAI.PLLSAIN = 192;
+  PeriphClkInitStruct.PLLSAI.PLLSAIR = 2;
+  PeriphClkInitStruct.PLLSAI.PLLSAIQ = 3;
+  PeriphClkInitStruct.PLLSAI.PLLSAIP = RCC_PLLSAIP_DIV2;
+  PeriphClkInitStruct.PLLSAIDivQ = 1;
+  PeriphClkInitStruct.PLLSAIDivR = RCC_PLLSAIDIVR_2;
   PeriphClkInitStruct.Usart1ClockSelection = RCC_USART1CLKSOURCE_PCLK2;
   PeriphClkInitStruct.I2c1ClockSelection = RCC_I2C1CLKSOURCE_PCLK1;
   PeriphClkInitStruct.Clk48ClockSelection = RCC_CLK48SOURCE_PLL;

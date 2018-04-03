@@ -17,6 +17,7 @@
 #include "MPU/MPU6050.h"
 #include "OSCan.h"
 #include "can.h"
+#include "tim.h"
 /* Private typedef -----------------------------------------------------------*/
 typedef struct{
 	tMPUHandler hmpu;
@@ -83,7 +84,33 @@ int Controler_Init(void){
   * @retval None
   */
 void Controler_Task(void* ptr){
+	tMPUMeasuremenet mmpu;
+	vTaskDelay(400);
+	//uruchamiam licznik do przechwytywania zdażeń od MPU
+	HAL_TIM_Base_Start(&htim12);
+	HAL_TIM_IC_Start_IT(&htim12,TIM_CHANNEL_1);
 	while(1){
+		if(MPU6050_GetMeasurement(controler.hmpu,&mmpu,100)==0){
+			//odebrano nowy pomiar
+		}else{
+			//nie odebrano pomiaru z MPU
+		}
+	}
+}
 
+/**
+  * @brief  Funkcja przerwania od timera TIM12, obsłógującego linie INT modułu MPU
+  * @param[in]  None
+  * @retval None
+  */
+void TIM8_BRK_TIM12_IRQHandler(void)
+{
+	static unsigned int lastCapture=0;
+	if(__HAL_TIM_GET_FLAG(&htim12, TIM_FLAG_CC1) != RESET){
+	    if(__HAL_TIM_GET_IT_SOURCE(&htim12, TIM_IT_CC1) !=RESET){
+	        __HAL_TIM_CLEAR_IT(&htim12, TIM_IT_CC1);
+	        MPU6050_UpdateFromISR(controler.hmpu,TIM12->CCR1-lastCapture);
+	        lastCapture = TIM12->CCR1;
+	    }
 	}
 }
