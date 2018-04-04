@@ -20,6 +20,7 @@
 #include "can.h"
 #include "tim.h"
 #include "usart.h"
+#include "UartLogStreamer.h"
 /* Private typedef -----------------------------------------------------------*/
 typedef struct{
 	tMPUHandler hmpu;
@@ -28,6 +29,7 @@ typedef struct{
 	tMotorInterfaceHandler leftMotor;
 	tMotorInterfaceHandler rightMotor;
 	tMPUMeasuremenet mmpu;
+	tLogerHandler loger;
 	xTaskHandle task;
 	xTaskHandle logTask;
 	char log[256];
@@ -51,6 +53,8 @@ int Controler_Init(void){
 	tCanInit cfg;
 	tCAN2UARTConfig c2uc;
 	tMotorInterfaceConfig mic;
+	tLogerCfg logCfg;
+	tUartStreamConfig uartStreamCfg;
 	//inicjuje modu� CAN
 	cfg.rxBufferSize=30;
 	OSCan_Init(&hcan1,&cfg);
@@ -65,6 +69,16 @@ int Controler_Init(void){
 	if(OsUART_Init(&controler.huart,&huart1)){
 		return 4;
 	}
+	//inicjuje moduł logera
+	logCfg.dtms=40;
+	logCfg.maxNumberOfParams=30;
+	logCfg.memoryPoolSize=0;
+
+	uartStreamCfg.bufferPtr=0;
+	uartStreamCfg.bufferSize = 512;
+	uartStreamCfg.huart = controler.huart;
+	Loger_Create(&controler.loger,&logCfg,UartLogStreamer_Init(&uartStreamCfg));
+
 	//inicjuje modu� interfejsu silnik�w
 	mic.c2u = controler.c2uf;
 	mic.canId = 1;
