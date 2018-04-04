@@ -60,6 +60,7 @@ int Controler_Init(void){
 	if(CAN2UART_Init(&controler.c2uf,&c2uc)){
 		return 1;
 	}
+
 	//inicjuje UART
 	if(OsUART_Init(&controler.huart,&huart1)){
 		return 4;
