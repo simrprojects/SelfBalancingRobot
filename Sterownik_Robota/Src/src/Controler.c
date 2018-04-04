@@ -127,7 +127,7 @@ void Controler_SenderTask(void* ptr){
 				(int)controler.mmpu.acceleration[1],\
 				(int)controler.mmpu.acceleration[2]);
 		//wysyłam
-		OsUART_Transmit(controler.huart,controler.log,s,0);
+		OsUART_Transmit(controler.huart,(unsigned char*)controler.log,s,0);
 	}
 }
 /**
