@@ -22,6 +22,12 @@
 #include "usart.h"
 #include "UartLogStreamer.h"
 /* Private typedef -----------------------------------------------------------*/
+typedef enum{eSupervsorLeftMotorInactive=0,\/*<lewy silnik w trybie nieaktywnym*/
+			eSupervisorRightMotorInactive,\/*<prawy silnik w trybie nieaktywnym*/
+			eSupervisorLefMotorActive,\/*<lewy silnik w trybie aktywnym*/
+			eSupervisorRightMotorActive,\/*<prawy silnik w trybie aktywnym*/
+			eMPUSensorNoTrigger\/*<Czujnik MPU przestał zgłaszac pomiiary na linii INT*/
+			}tSupervisorMsg;
 typedef struct{
 	tMPUHandler hmpu;
 	tCAN2UARTHandle c2uf;
@@ -31,8 +37,8 @@ typedef struct{
 	tMPUMeasuremenet mmpu;
 	tLogerHandler loger;
 	xTaskHandle task;
-	xTaskHandle logTask;
-	char log[256];
+	xTaskHandle supervisorTask;
+	xQueueHandle supervisorMsgQueue;
 }tControler;
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
@@ -40,7 +46,9 @@ typedef struct{
 tControler controler;
 /* Private function prototypes -----------------------------------------------*/
 void Controler_Task(void* ptr);
+void Controler_SupervisorTask(void* ptr);
 void Controler_SenderTask(void* ptr);
+void Supervisor_NewMsg(tSupervisorMsg msg);
 /* Public  functions ---------------------------------------------------------*/
 /**
   * @brief  Funkcja inicjuje g��wny kontroler ruchu robota
@@ -70,7 +78,7 @@ int Controler_Init(void){
 		return 4;
 	}
 	//inicjuje moduł logera
-	logCfg.dtms=40;
+	logCfg.dtms=100;
 	logCfg.maxNumberOfParams=30;
 	logCfg.memoryPoolSize=0;
 
@@ -99,10 +107,11 @@ int Controler_Init(void){
 	if(MPU6050_Init(&controler.hmpu,&mpuhw,&mpucfg)){
 		return 4;
 	}
+	//inicjuje parametry wewnętrzne
+	controler.supervisorMsgQueue = xQueueCreate(20,sizeof(tSupervisorMsg));
 	//tworze w�tek kontrolera
 	xTaskCreate(Controler_Task,"controller",256,&controler,5,&controler.task);
-	//tworze wątek podglądu parametrów
-	xTaskCreate(Controler_SenderTask,"ctrl_log",256,&controler,5,&controler.logTask);
+	xTaskCreate(Controler_SupervisorTask,"supervisor",128,&controler,4,&controler.supervisorTask);
 	return 0;
 }
 /* Private functions ---------------------------------------------------------*/
@@ -113,6 +122,16 @@ int Controler_Init(void){
   */
 void Controler_Task(void* ptr){
 	vTaskDelay(400);
+	//dodaje parametry do logowania
+	Loger_AddParams(controler.loger,&controler.mmpu.rpy[0],"roll",eParamTypeSGL);
+	Loger_AddParams(controler.loger,&controler.mmpu.rpy[1],"pitch",eParamTypeSGL);
+	Loger_AddParams(controler.loger,&controler.mmpu.rpy[2],"yaw",eParamTypeSGL);
+	Loger_AddParams(controler.loger,&controler.mmpu.omega[0],"gyro_x",eParamTypeSGL);
+	Loger_AddParams(controler.loger,&controler.mmpu.omega[1],"gyro_y",eParamTypeSGL);
+	Loger_AddParams(controler.loger,&controler.mmpu.omega[2],"gyro_z",eParamTypeSGL);
+	Loger_AddParams(controler.loger,&controler.mmpu.acceleration[0],"acc_x",eParamTypeSGL);
+	Loger_AddParams(controler.loger,&controler.mmpu.acceleration[1],"acc_y",eParamTypeSGL);
+	Loger_AddParams(controler.loger,&controler.mmpu.acceleration[2],"acc_z",eParamTypeSGL);
 	//uruchamiam licznik do przechwytywania zdażeń od MPU
 	HAL_TIM_Base_Start(&htim12);
 	HAL_TIM_IC_Start_IT(&htim12,TIM_CHANNEL_1);
@@ -125,25 +144,28 @@ void Controler_Task(void* ptr){
 	}
 }
 /**
-  * @brief  Wątek wysyła z pewnym okresem dane pomairowe naport UART
+  * @brief  Wątek procesu nadzorującego stany pracy całego systemu
   * @param[in]  None
   * @retval None
   */
-void Controler_SenderTask(void* ptr){
-	int s;
-	vTaskDelay(1000);
+void Controler_SupervisorTask(void* ptr){
+	tSupervisorMsg msg;
 	while(1){
-		vTaskDelay(100);
-		s=sprintf(controler.log,"LOG: Roll:%d Pitch:%d Yaw: %d AccX:%d AccY:%d AccZ:%d \n\r",\
-				(int)controler.mmpu.rpy[0],\
-				(int)controler.mmpu.rpy[1],\
-				(int)controler.mmpu.rpy[2],\
-				(int)controler.mmpu.acceleration[0],\
-				(int)controler.mmpu.acceleration[1],\
-				(int)controler.mmpu.acceleration[2]);
-		//wysyłam
-		OsUART_Transmit(controler.huart,(unsigned char*)controler.log,s,0);
+		//odbieram rozkazy
+		if(xQueueReceive(controler.supervisorMsgQueue,&msg,200)==pdTRUE){
+			switch(msg){
+
+			}
+		}
 	}
+}
+/**
+  * @brief  Funkcja zgłasza nowe zdażenie dla modułu nadzorującego pracę systemu
+  * @param[in]  None
+  * @retval None
+  */
+void Supervisor_NewMsg(tSupervisorMsg msg){
+	xQueueSend(controler.supervisorMsgQueue,&msg,40);
 }
 /**
   * @brief  Funkcja przerwania od timera TIM12, obsłógującego linie INT modułu MPU
