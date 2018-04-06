@@ -46,7 +46,6 @@ extern DMA_HandleTypeDef hdma_i2c1_rx;
 extern DMA_HandleTypeDef hdma_i2c1_tx;
 extern I2C_HandleTypeDef hi2c1;
 extern DMA_HandleTypeDef hdma_spi5_tx;
-extern TIM_HandleTypeDef htim8;
 extern TIM_HandleTypeDef htim10;
 extern DMA_HandleTypeDef hdma_usart1_tx;
 
@@ -160,6 +159,7 @@ void I2C1_EV_IRQHandler(void)
 
   /* USER CODE END I2C1_EV_IRQn 1 */
 }
+
 /**
 * @brief This function handles TIM6 global interrupt, DAC1 and DAC2 underrun error interrupts.
 */
