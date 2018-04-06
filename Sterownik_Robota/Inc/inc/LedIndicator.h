@@ -12,9 +12,9 @@ typedef void* tLedIndictorHandler;
 
 typedef enum{
 	eLedIndicator_MotorInit=0,/*<tryb inicjacji silników i oczekiwania na przełączenie w tryb pracy aktywnej*/
-	eLedIndicato_ReadyToWork,/*<tryb aktywnej pracy silników bez stabilizacji robota*/
-	eLedIndicato_RobotStabilisation,/*<tryb pełnej stabilizacji robota*/
-	eLedIndicato_FaultState,/*<awaria podsystemu czujników lub silników*/
+	eLedIndicator_ReadyToWork,/*<tryb aktywnej pracy silników bez stabilizacji robota*/
+	eLedIndicator_RobotStabilisation,/*<tryb pełnej stabilizacji robota*/
+	eLedIndicator_FaultState,/*<awaria podsystemu czujników lub silników*/
 }tLedIndicatorState;
 
 int LedIndicator_Init(tLedIndictorHandler *h);

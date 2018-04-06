@@ -63,15 +63,15 @@ int LedIndicator_SetState(tLedIndictorHandler h,tLedIndicatorState state){
 		LedControler_SetLedState(HLI()->led2,0);
 		LedControler_SetLedBlinking(HLI()->led1,200);
 		break;
-	case eLedIndicato_ReadyToWork:/*<tryb aktywnej pracy silników bez stabilizacji robota*/
+	case eLedIndicator_ReadyToWork:/*<tryb aktywnej pracy silników bez stabilizacji robota*/
 		LedControler_SetLedState(HLI()->led1,1);
 		LedControler_SetLedState(HLI()->led2,0);
 		break;
-	case eLedIndicato_RobotStabilisation:/*<tryb pełnej stabilizacji robota*/
+	case eLedIndicator_RobotStabilisation:/*<tryb pełnej stabilizacji robota*/
 		LedControler_SetLedState(HLI()->led1,1);
 		LedControler_SetLedState(HLI()->led2,1);
 		break;
-	case eLedIndicato_FaultState:/*<awaria podsystemu czujników lub silników*/
+	case eLedIndicator_FaultState:/*<awaria podsystemu czujników lub silników*/
 		LedControler_SetLedBlinking(HLI()->led1,400);
 		LedControler_SetLedBlinking(HLI()->led2,400);
 		break;

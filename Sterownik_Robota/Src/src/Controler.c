@@ -21,6 +21,7 @@
 #include "tim.h"
 #include "usart.h"
 #include "UartLogStreamer.h"
+#include "LedIndicator.h"
 /* Private typedef -----------------------------------------------------------*/
 typedef enum{eSupervsorLeftMotorInactive=0,/*<lewy silnik w trybie nieaktywnym*/
 			eSupervisorRightMotorInactive,/*<prawy silnik w trybie nieaktywnym*/
@@ -43,6 +44,7 @@ typedef struct{
 	tMotorInterfaceHandler rightMotor;
 	tMPUMeasuremenet mmpu;
 	tLogerHandler loger;
+	tLedIndictorHandler ledIndicator;
 	xTaskHandle task;
 	xTaskHandle supervisorTask;
 	xQueueHandle supervisorMsgQueue;
@@ -120,6 +122,8 @@ int Controler_Init(void){
 	if(MPU6050_Init(&controler.hmpu,&mpuhw,&mpucfg)){
 		return 4;
 	}
+	//inicjuje moduł LEDIndicator
+	LedIndicator_Init(&controler.ledIndicator);
 	//inicjuje parametry wewnętrzne
 	controler.supervisorMsgQueue = xQueueCreate(20,sizeof(tSupervisorMsg));
 	controler.supervisor.state = eSystem_MotorInit;
@@ -242,14 +246,18 @@ void Supervisor_SwitchToNewState(tSupervisorSystemState newState){
 	case eSystem_MotorInit:/*<tryb inicjacji silników i oczekiwania na przełączenie w tryb pracy aktywnej*/
 		MotorInterface_SetMode(controler.leftMotor,eActiveMode);
 		MotorInterface_SetMode(controler.rightMotor,eActiveMode);
+		LedIndicator_SetState(controler.ledIndicator,eLedIndicator_MotorInit);
 		break;
 	case eSystem_ReadyToWork:/*<tryb aktywnej pracy silników bez stabilizacji robota*/
+		LedIndicator_SetState(controler.ledIndicator,eLedIndicator_ReadyToWork);
 		break;
 	case eSystem_RobotStabilisation:/*<tryb pełnej stabilizacji robota*/
+		LedIndicator_SetState(controler.ledIndicator,eLedIndicator_RobotStabilisation);
 		break;
 	case eSystem_FaultState:/*<awaria podsystemu czujników lub silników*/
 		MotorInterface_SetMode(controler.leftMotor,eInactiveMode);
 		MotorInterface_SetMode(controler.rightMotor,eInactiveMode);
+		LedIndicator_SetState(controler.ledIndicator,eLedIndicator_FaultState);
 		break;
 	}
 	//ustawiam nowy stan
