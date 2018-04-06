@@ -40,6 +40,7 @@ static signed char gyro_orientation[9] = {-1, 0, 0,
 void MPU6050_Thread(tMPUHandler h);
 int MPU6050_DMPConfig(tMPU6050 *mpu);
 void MPU6050_ReadDMPFIFO(tMPU6050 *mpu);
+extern void i2c_init(void);
 /* Public  functions ---------------------------------------------------------*/
 /**
   * @brief
@@ -50,6 +51,8 @@ void MPU6050_ReadDMPFIFO(tMPU6050 *mpu);
   */
 int MPU6050_Init(tMPUHandler *handler,tMPUHardwareSetting *hwSettings,tMPUConfiguration *config){
 	tMPU6050 *mpu;
+	//inicjuje port komunikacyjny
+	i2c_init();
 	//alokuje pamięc na zmienną
 	mpu = pvPortMalloc(sizeof(tMPU6050));
 	//alokuję kolejkę bufora odbiorczego

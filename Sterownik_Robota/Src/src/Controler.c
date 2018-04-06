@@ -30,7 +30,8 @@ typedef enum{eSupervisorLeftMotorInactive=0,/*<lewy silnik w trybie nieaktywnym*
 			eSupervisorMPUSensorNoTrigger/*<Czujnik MPU przestał zgłaszac pomiiary na linii INT*/
 			}tSupervisorMsg;
 typedef enum{
-	eSystem_MotorInit=0,/*<tryb inicjacji silników i oczekiwania na przełączenie w tryb pracy aktywnej*/
+	eSystem_InternalInit=0,/*<tryb pocztkowej inicjacji*/
+	eSystem_MotorInit,/*<tryb inicjacji silników i oczekiwania na przełączenie w tryb pracy aktywnej*/
 	eSystem_ReadyToWork,/*<tryb aktywnej pracy silników bez stabilizacji robota*/
 	eSystem_RobotStabilisation,/*<tryb pełnej stabilizacji robota*/
 	eSystem_FaultState,/*<awaria podsystemu czujników lub silników*/
@@ -127,7 +128,7 @@ int Controler_Init(void){
 	LedIndicator_Init(&controler.ledIndicator);
 	//inicjuje parametry wewnętrzne
 	controler.supervisorMsgQueue = xQueueCreate(20,sizeof(tSupervisorMsg));
-	controler.supervisor.state = eSystem_MotorInit;
+	controler.supervisor.state = eSystem_InternalInit;
 	controler.supervisor.leftMotorActive=0;
 	controler.supervisor.rightMotorActive=0;
 	//tworze wątek kontrolera
@@ -143,7 +144,6 @@ int Controler_Init(void){
   * @retval None
   */
 void Controler_Task(void* ptr){
-	vTaskDelay(100);
 	//dodaje parametry do logowania
 	Loger_AddParams(controler.loger,&controler.mmpu.rpy[0],"roll",eParamTypeSGL);
 	Loger_AddParams(controler.loger,&controler.mmpu.rpy[1],"pitch",eParamTypeSGL);
@@ -157,6 +157,12 @@ void Controler_Task(void* ptr){
 	//uruchamiam licznik do przechwytywania zdażeń od MPU
 	HAL_TIM_Base_Start(&htim12);
 	HAL_TIM_IC_Start_IT(&htim12,TIM_CHANNEL_1);
+	//czekam na inicjację czujnika i pojawienie się pomiarów
+	while(MPU6050_GetMeasurement(controler.hmpu,&controler.mmpu,200)!=0){
+		vTaskDelay(200);
+	}
+	//przechodzę do inicjacji silników
+	Supervisor_SwitchToNewState(eSystem_MotorInit);
 	//uruchamiam loger
 	Loger_OpenSesion(controler.loger);
 	while(1){
@@ -250,6 +256,8 @@ void Supervisor_SwitchToNewState(tSupervisorSystemState newState){
 		return;
 	}
 	switch(newState){
+	case eSystem_InternalInit:
+		break;
 	case eSystem_MotorInit:/*<tryb inicjacji silników i oczekiwania na przełączenie w tryb pracy aktywnej*/
 		MotorInterface_SetMode(controler.leftMotor,eActiveMode);
 		MotorInterface_SetMode(controler.rightMotor,eActiveMode);
