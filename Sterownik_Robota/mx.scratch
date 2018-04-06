@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <Project>
-<ProjectName>D:\git\hello_world\Sterownik_Robota\\Sterownik_Robota</ProjectName>
+<ProjectName>C:\Users\Przemek\git\SelfBalancingRobot\Sterownik_Robota\\Sterownik_Robota</ProjectName>
 <CMSIS>..\Drivers\CMSIS</CMSIS>
 <HAL_Driver>C:\Users\Przemek\STM32Cube\Repository\STM32Cube_FW_F7_V1.8.0\Drivers\CMSIS</HAL_Driver>
 

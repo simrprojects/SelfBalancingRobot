@@ -23,11 +23,11 @@
 #include "UartLogStreamer.h"
 #include "LedIndicator.h"
 /* Private typedef -----------------------------------------------------------*/
-typedef enum{eSupervsorLeftMotorInactive=0,/*<lewy silnik w trybie nieaktywnym*/
+typedef enum{eSupervisorLeftMotorInactive=0,/*<lewy silnik w trybie nieaktywnym*/
 			eSupervisorRightMotorInactive,/*<prawy silnik w trybie nieaktywnym*/
-			eSupervisorLefMotorActive,/*<lewy silnik w trybie aktywnym*/
+			eSupervisorLeftMotorActive,/*<lewy silnik w trybie aktywnym*/
 			eSupervisorRightMotorActive,/*<prawy silnik w trybie aktywnym*/
-			eMPUSensorNoTrigger/*<Czujnik MPU przestał zgłaszac pomiiary na linii INT*/
+			eSupervisorMPUSensorNoTrigger/*<Czujnik MPU przestał zgłaszac pomiiary na linii INT*/
 			}tSupervisorMsg;
 typedef enum{
 	eSystem_MotorInit=0,/*<tryb inicjacji silników i oczekiwania na przełączenie w tryb pracy aktywnej*/
@@ -58,6 +58,7 @@ typedef struct{
 /* Private macro -------------------------------------------------------------*/
 /* Private variables ---------------------------------------------------------*/
 tControler controler;
+volatile unsigned long ulHighFrequencyTimerTicks = 0;
 /* Private function prototypes -----------------------------------------------*/
 void Controler_Task(void* ptr);
 void Controler_SupervisorTask(void* ptr);
@@ -142,7 +143,7 @@ int Controler_Init(void){
   * @retval None
   */
 void Controler_Task(void* ptr){
-	vTaskDelay(400);
+	vTaskDelay(100);
 	//dodaje parametry do logowania
 	Loger_AddParams(controler.loger,&controler.mmpu.rpy[0],"roll",eParamTypeSGL);
 	Loger_AddParams(controler.loger,&controler.mmpu.rpy[1],"pitch",eParamTypeSGL);
@@ -156,11 +157,14 @@ void Controler_Task(void* ptr){
 	//uruchamiam licznik do przechwytywania zdażeń od MPU
 	HAL_TIM_Base_Start(&htim12);
 	HAL_TIM_IC_Start_IT(&htim12,TIM_CHANNEL_1);
+	//uruchamiam loger
+	Loger_OpenSesion(controler.loger);
 	while(1){
-		if(MPU6050_GetMeasurement(controler.hmpu,&controler.mmpu,100)==0){
+		if(MPU6050_GetMeasurement(controler.hmpu,&controler.mmpu,200)==0){
 			//odebrano nowy pomiar
 		}else{
-			//nie odebrano pomiaru z MPU
+			//nie odebrano pomiaru z MPU, zgłaszam problem
+			Supervisor_NewMsg(eSupervisorMPUSensorNoTrigger);
 		}
 	}
 }
@@ -175,7 +179,7 @@ void Controler_SupervisorTask(void* ptr){
 		//odbieram rozkazy
 		if(xQueueReceive(controler.supervisorMsgQueue,&msg,200)==pdTRUE){
 			switch(msg){
-			case eSupervsorLeftMotorInactive:/*<lewy silnik w trybie nieaktywnym*/
+			case eSupervisorLeftMotorInactive:/*<lewy silnik w trybie nieaktywnym*/
 				controler.supervisor.leftMotorActive=0;
 				//sprawdzam, czy prawy silnik jest w trybie aktywnym
 				if(controler.supervisor.rightMotorActive){
@@ -203,7 +207,7 @@ void Controler_SupervisorTask(void* ptr){
 					Supervisor_SwitchToNewState(eSystem_MotorInit);
 				}
 				break;
-			case eSupervisorLefMotorActive:/*<lewy silnik w trybie aktywnym*/
+			case eSupervisorLeftMotorActive:/*<lewy silnik w trybie aktywnym*/
 				controler.supervisor.leftMotorActive=1;
 				//sprawdzam, czy prawy silnik jest aktywny
 				if(controler.supervisor.rightMotorActive){
@@ -219,7 +223,7 @@ void Controler_SupervisorTask(void* ptr){
 					Supervisor_SwitchToNewState(eSystem_ReadyToWork);
 				}
 				break;
-			case eMPUSensorNoTrigger:/*<Czujnik MPU przestał zgłaszac pomiiary na linii INT*/
+			case eSupervisorMPUSensorNoTrigger:/*<Czujnik MPU przestał zgłaszac pomiiary na linii INT*/
 				//wyłaczam silniki
 				Supervisor_SwitchToNewState(eSystem_FaultState);
 				break;
@@ -241,7 +245,10 @@ void Supervisor_NewMsg(tSupervisorMsg msg){
   * @retval None
   */
 void Supervisor_SwitchToNewState(tSupervisorSystemState newState){
-
+	if(newState==controler.supervisor.state){
+		//stan nie uległ zmianie
+		return;
+	}
 	switch(newState){
 	case eSystem_MotorInit:/*<tryb inicjacji silników i oczekiwania na przełączenie w tryb pracy aktywnej*/
 		MotorInterface_SetMode(controler.leftMotor,eActiveMode);
@@ -264,6 +271,30 @@ void Supervisor_SwitchToNewState(tSupervisorSystemState newState){
 	controler.supervisor.state = newState;
 }
 /**
+  * @brief  Funkcja callBack z modułu interfejsu silników zgłasz wzmianę stanu pracy sterowników silników
+  * @param[in]  None
+  * @retval None
+  */
+void MotorInterface_NewMotorState(tMotorInterfaceHandler h,tMotorInterfaceMode mode){
+	if(h == controler.leftMotor){
+		//lewy silnik
+		if(mode == eInactiveMode){
+			Supervisor_NewMsg(eSupervisorLeftMotorInactive);
+		}else{
+			Supervisor_NewMsg(eSupervisorLeftMotorActive);
+		}
+	}else if(h == controler.rightMotor){
+		//prawy silnik
+		if(mode == eInactiveMode){
+			Supervisor_NewMsg(eSupervisorRightMotorInactive);
+		}else{
+			Supervisor_NewMsg(eSupervisorRightMotorActive);
+		}
+	}else{
+		//bład
+	}
+}
+/**
   * @brief  Funkcja przerwania od timera TIM12, obsłógującego linie INT modułu MPU
   * @param[in]  None
   * @retval None
@@ -278,4 +309,22 @@ void TIM8_BRK_TIM12_IRQHandler(void)
 	        lastCapture = TIM12->CCR1;
 	    }
 	}
+}
+/**
+  * @brief  Przerwanie od licznka TIM8 na potrzeby prowadzenia ststystyk OS
+  * @param[in]  None
+  * @retval None
+  */
+void TIM8_UP_TIM13_IRQHandler(void)
+{
+	__HAL_TIM_CLEAR_IT(&htim8, TIM_IT_UPDATE);
+	ulHighFrequencyTimerTicks++;
+}
+/**
+  * @brief
+  * @param[in]  None
+  * @retval None
+  */
+void SetupRunTimeStatsTimer(void){
+	HAL_TIM_Base_Start_IT(&htim8);
 }

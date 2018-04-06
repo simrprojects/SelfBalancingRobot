@@ -88,7 +88,7 @@ int UartLogStreamer_tUpdateLogerSesion(tLogDescriptor* descriptor){
 	//przetwarzam tablice zmiennych
 	for(int i=0;i<numOfRecords;i++){
 		//dodaje nazwę parametru
-		cnt+= sprintf(&buffer[cnt],"%s, ",array[i].name);
+		cnt+= sprintf(&buffer[cnt],"%s: ",array[i].name);
 		//dokonuje konwersji zgodnie z typem parametru
 		cnt+= Loger_Convert2Text(&buffer[cnt],array[i].type,array[i].src);
 		if(cnt>(uart->bufferSize-10)){
@@ -96,6 +96,8 @@ int UartLogStreamer_tUpdateLogerSesion(tLogDescriptor* descriptor){
 			break;
 		}
 	}
+	//dodaje znak końca linii
+	cnt+= sprintf(&buffer[cnt],"%s, ","\n\r");
 	//po konwersji, wysyłam dane
 	return OsUART_Transmit(uart->huart,(unsigned char*)buffer,cnt,0);
 }

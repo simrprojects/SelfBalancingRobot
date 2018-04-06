@@ -13,6 +13,8 @@
 #include "task.h"
 #include "queue.h"
 #include "Loger.h"
+#include "stdio.h"
+#include "string.h"
 /* Private typedef -----------------------------------------------------------*/
 typedef struct{
 	tParamDescriptor *paramsArray;
@@ -51,7 +53,6 @@ int Loger_Create(tLogerHandler *h,tLogerCfg *cfg,tLogerStreamerDriver *drv){
 	memcpy(&log->driver,drv,sizeof(tLogerStreamerDriver));
 	//inicjuje wątek
 	xTaskCreate(Loger_Task,"loger",256,log,1,&log->task);
-	vTaskSuspend(log->task);
 	*h = log;
 	return 0;
 }
@@ -67,6 +68,7 @@ int Loger_AddParams(tLogerHandler h,void* paramRef,char* paramName,tLogerParamTy
 		HLOGER()->paramsArray[i].src = paramRef;
 		HLOGER()->paramsArray[i].name = paramName;
 		HLOGER()->paramsArray[i].type = paramType;
+		HLOGER()->paramsCounter++;
 	}else{
 		Loger_Error(h,"Brak wolnych miejsc na nowy parametr");
 		return 1;//brak wolnych miejsc
@@ -109,14 +111,15 @@ int Loger_CloseSesion(tLogerHandler h){
 int Loger_Convert2Text(char* buf,tLogerParamType type,void* data){
 	switch(type){
 	case eParamTypeU8:
-		return sprintf(buf,"%d",*(char*)data);
+		return sprintf(buf,"%d; ",*(char*)data);
 	case eParamTypeU16:
-		return sprintf(buf,"%d",*(unsigned short*)data);
+		return sprintf(buf,"%d; ",*(unsigned short*)data);
 	case eParamTypeU32:
-		return sprintf(buf,"%d",*(unsigned int*)data);
+		return sprintf(buf,"%d; ",*(unsigned int*)data);
 	case eParamTypeSGL:
-		return sprintf(buf,"%f",*(float*)data);
+		return sprintf(buf,"%f; ",*(float*)data);
 	}
+	return 0;
 }
 /* Private functions ---------------------------------------------------------*/
 /**

@@ -38,7 +38,7 @@ typedef struct{
 tLedControler* LedControler_Init(GPIO_TypeDef* gpio,unsigned short pin);
 void LedControler_SetLedState(tLedControler* led,int constanOnOf);
 void LedControler_SetLedBlinking(tLedControler* led,int period);
-void LedControler_TimerTask(void* h);
+void LedControler_TimerTask(TimerHandle_t xTimer);
 /* Public  functions ---------------------------------------------------------*/
 /**
   * @brief  Funkcja inicjuje moduł
@@ -50,6 +50,7 @@ int LedIndicator_Init(tLedIndictorHandler *h){
 	li = pvPortMalloc(sizeof(tLedInidicator));
 	li->led1 = LedControler_Init(GPIOJ,LD_USER1_Pin);
 	li->led2 = LedControler_Init(GPIOJ,LD_USER2_Pin);
+	*h = li;
 	return 0;
 }
 /**
@@ -126,13 +127,14 @@ void LedControler_SetLedBlinking(tLedControler* led,int period){
   * @param[in]  None
   * @retval None
   */
-void LedControler_TimerTask(void* h){
-	HLC()->state ^= HLC()->state;
-	HLC()->state &=0x1;
-	if(HLC()->state){
-		HLC()->gpio->ODR |= HLC()->pin;
+void LedControler_TimerTask(TimerHandle_t xTimer){
+	tLedControler* led = (tLedControler*)pvTimerGetTimerID(xTimer);
+	if(led->state==0){
+		led->state=1;
+		led->gpio->ODR |= led->pin;
 	}else{
-		HLC()->gpio->ODR &= ~HLC()->pin;
+		led->state=0;
+		led->gpio->ODR &= ~led->pin;
 	}
 }
 
