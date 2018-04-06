@@ -15,7 +15,7 @@ typedef enum{eInactiveMode=0,eActiveMode}tMotorInterfaceMode;
 typedef struct{
 	int canId;
 	int numPolePairs;
-	int reversMode;/**<tryb pracy odwróconej*/
+	int reversMode;/**<tryb pracy odwrï¿½conej*/
 	tCAN2UARTHandle c2u;
 }tMotorInterfaceConfig;
 
@@ -27,7 +27,7 @@ int MotorInterface_GetSpeed(tMotorInterfaceHandler h,float *rpm);
 int MotorInterface_GetPosition(tMotorInterfaceHandler h,float *angle);
 int MotorInterface_GetCurrent(tMotorInterfaceHandler h,float *current);
 int MotorInterface_GetVoltage(tMotorInterfaceHandler h,float *voltage);
-int MotorInterface_GetState(tMotorInterfaceHandler h,tMotorInterfaceMode *mode);
+int MotorInterface_GetMode(tMotorInterfaceHandler h,tMotorInterfaceMode *mode);
 void MotorInterface_NewMotorState(tMotorInterfaceHandler h,tMotorInterfaceMode mode);
 
 

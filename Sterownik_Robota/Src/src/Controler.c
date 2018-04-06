@@ -22,12 +22,19 @@
 #include "usart.h"
 #include "UartLogStreamer.h"
 /* Private typedef -----------------------------------------------------------*/
-typedef enum{eSupervsorLeftMotorInactive=0,\/*<lewy silnik w trybie nieaktywnym*/
-			eSupervisorRightMotorInactive,\/*<prawy silnik w trybie nieaktywnym*/
-			eSupervisorLefMotorActive,\/*<lewy silnik w trybie aktywnym*/
-			eSupervisorRightMotorActive,\/*<prawy silnik w trybie aktywnym*/
-			eMPUSensorNoTrigger\/*<Czujnik MPU przestał zgłaszac pomiiary na linii INT*/
+typedef enum{eSupervsorLeftMotorInactive=0,/*<lewy silnik w trybie nieaktywnym*/
+			eSupervisorRightMotorInactive,/*<prawy silnik w trybie nieaktywnym*/
+			eSupervisorLefMotorActive,/*<lewy silnik w trybie aktywnym*/
+			eSupervisorRightMotorActive,/*<prawy silnik w trybie aktywnym*/
+			eMPUSensorNoTrigger/*<Czujnik MPU przestał zgłaszac pomiiary na linii INT*/
 			}tSupervisorMsg;
+typedef enum{
+	eSystem_MotorInit=0,/*<tryb inicjacji silników i oczekiwania na przełączenie w tryb pracy aktywnej*/
+	eSystem_ReadyToWork,/*<tryb aktywnej pracy silników bez stabilizacji robota*/
+	eSystem_RobotStabilisation,/*<tryb pełnej stabilizacji robota*/
+	eSystem_FaultState,/*<awaria podsystemu czujników lub silników*/
+}tSupervisorSystemState;
+
 typedef struct{
 	tMPUHandler hmpu;
 	tCAN2UARTHandle c2uf;
@@ -39,6 +46,11 @@ typedef struct{
 	xTaskHandle task;
 	xTaskHandle supervisorTask;
 	xQueueHandle supervisorMsgQueue;
+	struct{
+		int leftMotorActive:1;
+		int rightMotorActive:1;
+		tSupervisorSystemState state;
+	}supervisor;
 }tControler;
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
@@ -49,6 +61,7 @@ void Controler_Task(void* ptr);
 void Controler_SupervisorTask(void* ptr);
 void Controler_SenderTask(void* ptr);
 void Supervisor_NewMsg(tSupervisorMsg msg);
+void Supervisor_SwitchToNewState(tSupervisorSystemState newState);
 /* Public  functions ---------------------------------------------------------*/
 /**
   * @brief  Funkcja inicjuje g��wny kontroler ruchu robota
@@ -109,8 +122,12 @@ int Controler_Init(void){
 	}
 	//inicjuje parametry wewnętrzne
 	controler.supervisorMsgQueue = xQueueCreate(20,sizeof(tSupervisorMsg));
-	//tworze w�tek kontrolera
+	controler.supervisor.state = eSystem_MotorInit;
+	controler.supervisor.leftMotorActive=0;
+	controler.supervisor.rightMotorActive=0;
+	//tworze wątek kontrolera
 	xTaskCreate(Controler_Task,"controller",256,&controler,5,&controler.task);
+	//tworzę wątek zarządzający pracą systemu
 	xTaskCreate(Controler_SupervisorTask,"supervisor",128,&controler,4,&controler.supervisorTask);
 	return 0;
 }
@@ -154,7 +171,54 @@ void Controler_SupervisorTask(void* ptr){
 		//odbieram rozkazy
 		if(xQueueReceive(controler.supervisorMsgQueue,&msg,200)==pdTRUE){
 			switch(msg){
-
+			case eSupervsorLeftMotorInactive:/*<lewy silnik w trybie nieaktywnym*/
+				controler.supervisor.leftMotorActive=0;
+				//sprawdzam, czy prawy silnik jest w trybie aktywnym
+				if(controler.supervisor.rightMotorActive){
+					//pravy silnik jest aktywny, więc go deaktywuje
+					MotorInterface_SetMode(controler.rightMotor,eInactiveMode);
+					//ustawiam stan głownej maszyny stanowej
+					Supervisor_SwitchToNewState(eSystem_MotorInit);
+				}else{
+					//przełączam się do trybu aktywacji silników
+					Supervisor_SwitchToNewState(eSystem_MotorInit);
+				}
+				break;
+			case eSupervisorRightMotorInactive:/*<prawy silnik w trybie nieaktywnym*/
+				controler.supervisor.rightMotorActive=0;
+				//sprawdzam, czy lewy silnik jest w trybie aktywnym
+				if(controler.supervisor.leftMotorActive){
+					//pravy silnik jest aktywny, więc go deaktywuje
+					MotorInterface_SetMode(controler.leftMotor,eInactiveMode);
+					//ustawiam stan głownej maszyny stanowej
+					Supervisor_SwitchToNewState(eSystem_MotorInit);
+					//czekam
+					vTaskDelay(1000);
+				}else{
+					//przełączam się do trybu aktywacji silników
+					Supervisor_SwitchToNewState(eSystem_MotorInit);
+				}
+				break;
+			case eSupervisorLefMotorActive:/*<lewy silnik w trybie aktywnym*/
+				controler.supervisor.leftMotorActive=1;
+				//sprawdzam, czy prawy silnik jest aktywny
+				if(controler.supervisor.rightMotorActive){
+					//oba silniki są w trybie aktywnym, przełączam tryb pracy
+					Supervisor_SwitchToNewState(eSystem_ReadyToWork);
+				}
+				break;
+			case eSupervisorRightMotorActive:/*<prawy silnik w trybie aktywnym*/
+				controler.supervisor.rightMotorActive=1;
+				//sprawdzam, czy prawy silnik jest aktywny
+				if(controler.supervisor.leftMotorActive){
+					//oba silniki są w trybie aktywnym, przełączam tryb pracy
+					Supervisor_SwitchToNewState(eSystem_ReadyToWork);
+				}
+				break;
+			case eMPUSensorNoTrigger:/*<Czujnik MPU przestał zgłaszac pomiiary na linii INT*/
+				//wyłaczam silniki
+				Supervisor_SwitchToNewState(eSystem_FaultState);
+				break;
 			}
 		}
 	}
@@ -166,6 +230,30 @@ void Controler_SupervisorTask(void* ptr){
   */
 void Supervisor_NewMsg(tSupervisorMsg msg){
 	xQueueSend(controler.supervisorMsgQueue,&msg,40);
+}
+/**
+  * @brief  Funkcja realizuje rządanie przełaczenia trybu pracy maszyny stanowej
+  * @param[in]  None
+  * @retval None
+  */
+void Supervisor_SwitchToNewState(tSupervisorSystemState newState){
+
+	switch(newState){
+	case eSystem_MotorInit:/*<tryb inicjacji silników i oczekiwania na przełączenie w tryb pracy aktywnej*/
+		MotorInterface_SetMode(controler.leftMotor,eActiveMode);
+		MotorInterface_SetMode(controler.rightMotor,eActiveMode);
+		break;
+	case eSystem_ReadyToWork:/*<tryb aktywnej pracy silników bez stabilizacji robota*/
+		break;
+	case eSystem_RobotStabilisation:/*<tryb pełnej stabilizacji robota*/
+		break;
+	case eSystem_FaultState:/*<awaria podsystemu czujników lub silników*/
+		MotorInterface_SetMode(controler.leftMotor,eInactiveMode);
+		MotorInterface_SetMode(controler.rightMotor,eInactiveMode);
+		break;
+	}
+	//ustawiam nowy stan
+	controler.supervisor.state = newState;
 }
 /**
   * @brief  Funkcja przerwania od timera TIM12, obsłógującego linie INT modułu MPU
