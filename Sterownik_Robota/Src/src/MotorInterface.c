@@ -22,6 +22,7 @@ typedef struct{
 	float current;
 	float rpm;
 	float angle;
+	tMotorMeasuremenets measurements;
 	unsigned short currentRef;/*< warto�c srednia pradu z pomiaru gdy prad nie p�ynie*/
 	unsigned short angleOffset;
 	struct{
@@ -79,7 +80,7 @@ int MotorInterface_Init(tMotorInterfaceHandler *h,tMotorInterfaceConfig *cfg){
   * @retval 0 - brak b��d�w
   */
 int MotorInterface_SetMode(tMotorInterfaceHandler h,tMotorInterfaceMode mode){
-	char cmode=(char)MIH()->mode;
+
 	if(mode!=MIH()->mode){
 		MotorInterface_SendMessage(MIH()->com,1,&mode,1);
 	}
@@ -105,7 +106,7 @@ int MotorInterface_UpdateControl(tMotorInterfaceHandler h,int ctrl){
   * @retval 0 - brak b��d�w
   */
 int MotorInterface_GetSpeed(tMotorInterfaceHandler h,float *rpm){
-	*rpm = MIH()->rpm;
+	*rpm = MIH()->measurements.rpm;
 	return 0;
 }
 /**
@@ -115,7 +116,7 @@ int MotorInterface_GetSpeed(tMotorInterfaceHandler h,float *rpm){
   * @retval 0 - brak b��d�w
   */
 int MotorInterface_GetPosition(tMotorInterfaceHandler h,float *angle){
-	*angle=MIH()->angle;
+	*angle=MIH()->measurements.angle;
 	return 0;
 }
 /**
@@ -125,7 +126,7 @@ int MotorInterface_GetPosition(tMotorInterfaceHandler h,float *angle){
   * @retval 0 - brak b��d�w
   */
 int MotorInterface_GetCurrent(tMotorInterfaceHandler h,float *current){
-	*current = MIH()->current;
+	*current = MIH()->measurements.current;
 	return 0;
 }
 /**
@@ -135,7 +136,7 @@ int MotorInterface_GetCurrent(tMotorInterfaceHandler h,float *current){
   * @retval 0 - brak b��d�w
   */
 int MotorInterface_GetVoltage(tMotorInterfaceHandler h,float *voltage){
-	*voltage = MIH()->voltage;
+	*voltage = MIH()->measurements.voltage;
 	return 0;
 }
 /**
@@ -147,6 +148,14 @@ int MotorInterface_GetVoltage(tMotorInterfaceHandler h,float *voltage){
 int MotorInterface_GetState(tMotorInterfaceHandler h,tMotorInterfaceMode *mode){
 	*mode = MIH()->mode;
 	return 0;
+}
+/**
+  * @brief  Funkcja zwraca strukturę ze wszystkimi podstawowymi pomiarami silnika
+  * @param[in]  None
+  * @retval None
+  */
+tMotorMeasuremenets* MotorInterface_GetMeasurements(tMotorInterfaceHandler h){
+	return &MIH()->measurements;
 }
 /* Private functions ---------------------------------------------------------*/
 /**
@@ -253,14 +262,14 @@ void MotorInterface_ParseNewMeasurement(tMotorInterface *mi,char* buffer,int siz
 	unsigned short tmp;
 	if(size>=8){
 		tmp = *(unsigned short*)&buffer[2];
-		mi->voltage = (float)tmp*0.01543;/*wsp�czynnik skaluj�cy wynika z podzia�u dzielnika=0.052212,
+		mi->measurements.voltage = (float)tmp*0.01543;/*wsp�czynnik skaluj�cy wynika z podzia�u dzielnika=0.052212,
 																		   rozdizelczo�ci przetwornika=12bit,
 																		   napi�cia referencyjnego=3.3V*/
 		tmp = *(unsigned short*)&buffer[0];
-		mi->current = ((int)tmp - (int)mi->currentRef)*0.0105;/* Wsp�lczynnik skaluj�cy pradu*/
-		mi->rpm = *(signed short*)&buffer[4];
+		mi->measurements.current = ((int)tmp - (int)mi->currentRef)*0.0105;/* Wsp�lczynnik skaluj�cy pradu*/
+		mi->measurements.rpm = *(signed short*)&buffer[4];
 		tmp = *(unsigned short*)&buffer[6];
-		mi->angle = (int)(tmp - mi->angleOffset)*360/(6*15);
+		mi->measurements.angle = (int)(tmp - mi->angleOffset)*360/(6*15);
 	}
 }
 /**

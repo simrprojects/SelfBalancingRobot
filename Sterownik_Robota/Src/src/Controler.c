@@ -44,6 +44,8 @@ typedef struct{
 	OsUARTHandler huart;
 	tMotorInterfaceHandler leftMotor;
 	tMotorInterfaceHandler rightMotor;
+	tMotorMeasuremenets *leftMotorMeasurement;
+	tMotorMeasuremenets *rightMotorMeasurement;
 	tMPUMeasuremenet mmpu;
 	tLogerHandler loger;
 	tLedIndictorHandler ledIndicator;
@@ -131,6 +133,9 @@ int Controler_Init(void){
 	if(MPU6050_Init(&controler.hmpu,&mpuhw,&mpucfg)){
 		return 4;
 	}
+	//odczytuje wskaxniki do struktury z parametrami pomiarowymi silników
+	controler.leftMotorMeasurement = MotorInterface_GetMeasurements(controler.leftMotor);
+	controler.rightMotorMeasurement = MotorInterface_GetMeasurements(controler.rightMotor);
 	//inicjuje moduł LEDIndicator
 	LedIndicator_Init(&controler.ledIndicator);
 	//inicjuje parametry wewnętrzne
@@ -155,12 +160,17 @@ void Controler_Task(void* ptr){
 	Loger_AddParams(controler.loger,&controler.mmpu.rpy[0],"roll",eParamTypeSGL);
 	Loger_AddParams(controler.loger,&controler.mmpu.rpy[1],"pitch",eParamTypeSGL);
 	Loger_AddParams(controler.loger,&controler.mmpu.rpy[2],"yaw",eParamTypeSGL);
-	Loger_AddParams(controler.loger,&controler.mmpu.omega[0],"gyro_x",eParamTypeSGL);
+	/*Loger_AddParams(controler.loger,&controler.mmpu.omega[0],"gyro_x",eParamTypeSGL);
 	Loger_AddParams(controler.loger,&controler.mmpu.omega[1],"gyro_y",eParamTypeSGL);
 	Loger_AddParams(controler.loger,&controler.mmpu.omega[2],"gyro_z",eParamTypeSGL);
 	Loger_AddParams(controler.loger,&controler.mmpu.acceleration[0],"acc_x",eParamTypeSGL);
 	Loger_AddParams(controler.loger,&controler.mmpu.acceleration[1],"acc_y",eParamTypeSGL);
-	Loger_AddParams(controler.loger,&controler.mmpu.acceleration[2],"acc_z",eParamTypeSGL);
+	Loger_AddParams(controler.loger,&controler.mmpu.acceleration[2],"acc_z",eParamTypeSGL);*/
+	Loger_AddParams(controler.loger,&controler.leftMotorMeasurement->voltage,"leftMotor_Voltage",eParamTypeSGL);
+	Loger_AddParams(controler.loger,&controler.rightMotorMeasurement->voltage,"rightMotor_Voltage",eParamTypeSGL);
+	Loger_AddParams(controler.loger,&controler.leftMotorMeasurement->current,"leftMotor_current",eParamTypeSGL);
+	Loger_AddParams(controler.loger,&controler.rightMotorMeasurement->current,"rightMotor_current",eParamTypeSGL);
+	Loger_AddParams(controler.loger,&controler.mmpu.rpy[2],"yaw",eParamTypeSGL);
 	//uruchamiam licznik do przechwytywania zdażeń od MPU
 	HAL_TIM_Base_Start(&htim12);
 	HAL_TIM_IC_Start_IT(&htim12,TIM_CHANNEL_1);
@@ -178,6 +188,19 @@ void Controler_Task(void* ptr){
 		}else{
 			//nie odebrano pomiaru z MPU, zgłaszam problem
 			Supervisor_NewMsg(eSupervisorMPUSensorNoTrigger);
+		}
+		//wyknuje operacje zgodnie ze stanem w którym się znajduje
+		switch(controler.supervisor.state){
+		case eSystem_InternalInit:
+			break;
+		case eSystem_MotorInit:/*<tryb inicjacji silników i oczekiwania na przełączenie w tryb pracy aktywnej*/
+			break;
+		case eSystem_ReadyToWork:/*<tryb aktywnej pracy silników bez stabilizacji robota*/
+			break;
+		case eSystem_RobotStabilisation:/*<tryb pełnej stabilizacji robota*/
+			break;
+		case eSystem_FaultState:/*<awaria podsystemu czujników lub silników*/
+			break;
 		}
 	}
 }
