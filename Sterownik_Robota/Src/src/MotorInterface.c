@@ -22,7 +22,7 @@ typedef struct{
 	float current;
 	float rpm;
 	float angle;
-	unsigned short currentRef;/*< wartoœc srednia pradu z pomiaru gdy prad nie p³ynie*/
+	unsigned short currentRef;/*< wartoï¿½c srednia pradu z pomiaru gdy prad nie pï¿½ynie*/
 	unsigned short angleOffset;
 	struct{
 		int state;
@@ -45,51 +45,51 @@ int  MotorInterface_Parse(tMotorInterface *mi,char c);
 void MotorInterface_ParseNewMeasurement(tMotorInterface *mi,char* buffer,int size);
 /* Public  functions ---------------------------------------------------------*/
 /**
-  * @brief  Funkcja inicuje jedn¹ instancjê silnika, z którym komunikacja odbywa siê poprzez magistralê UART/CAN
-  * Funkcja powoluje jeden watek, który zajmuje siê przetwarzaniem informacji z sieci komunikacyjnej
+  * @brief  Funkcja inicuje jednï¿½ instancjï¿½ silnika, z ktï¿½rym komunikacja odbywa siï¿½ poprzez magistralï¿½ UART/CAN
+  * Funkcja powoluje jeden watek, ktï¿½ry zajmuje siï¿½ przetwarzaniem informacji z sieci komunikacyjnej
   * @param[out] h: referencja do obiektu
-  * @param[in] cfg: struktóra konfiguracyjna
-  * @retval 0 - brak b³êdów
+  * @param[in] cfg: struktï¿½ra konfiguracyjna
+  * @retval 0 - brak bï¿½ï¿½dï¿½w
   */
 int MotorInterface_Init(tMotorInterfaceHandler *h,tMotorInterfaceConfig *cfg){
 	tMotorInterface *mi;
 	tCAN2UARTChannelCfg ucfg;
-	//alokujê pamiêc
+	//alokujï¿½ pamiï¿½c
 	mi=pvPortMalloc(sizeof(tMotorInterface));
-	//tworze kana³ komunikacyjny
+	//tworze kanaï¿½ komunikacyjny
 	ucfg.rxID = cfg->canId;
 	ucfg.txID = cfg->canId<<8;
 	ucfg.rxQueueDepth=64;
 	ucfg.txQueueDepth=64;
 	CAN2UART_CreateChannel(cfg->c2u,&mi->com,&ucfg);
-	//inicjuje zmienne wewnêtrzne
+	//inicjuje zmienne wewnï¿½trzne
 	mi->mode = eInactiveMode;
 	mi->angleOffset=0;
 	mi->currentRef=2100;
 	mi->mode = eInactiveMode;
-	//tworze w¹tek kontrolny
+	//tworze wï¿½tek kontrolny
 	xTaskCreate(MotorInterface_Task,"motorInterface",256,mi,4,&mi->task);
 	*h=mi;
 	return 0;
 }
 /**
-  * @brief  Funkcja wysy³a ¿adanie ustawienia trybu pracy silnika
+  * @brief  Funkcja wysyï¿½a ï¿½adanie ustawienia trybu pracy silnika
   * @param[in]  h: referencja do obiektu slnika
   * @param[in]  mode: tryb pracy kontrolera
-  * @retval 0 - brak b³êdów
+  * @retval 0 - brak bï¿½ï¿½dï¿½w
   */
 int MotorInterface_SetMode(tMotorInterfaceHandler h,tMotorInterfaceMode mode){
 	char cmode=(char)MIH()->mode;
 	if(mode!=MIH()->mode){
-		MotorInterface_SendMessage(MIH()->com,1,&cmode,1);
+		MotorInterface_SendMessage(MIH()->com,1,&mode,1);
 	}
 	return 0;
 }
 /**
-  * @brief  Funkcja ustawia g³ówny tryb pracy silnika
+  * @brief  Funkcja ustawia gï¿½ï¿½wny tryb pracy silnika
   * @param[in]  h: referencja do obiektu slnika
   * @param[in]  mode: tryb pracy kontrolera
-  * @retval 0 - brak b³êdów
+  * @retval 0 - brak bï¿½ï¿½dï¿½w
   */
 int MotorInterface_UpdateControl(tMotorInterfaceHandler h,int ctrl){
 	signed short uctrl = ctrl;
@@ -99,40 +99,40 @@ int MotorInterface_UpdateControl(tMotorInterfaceHandler h,int ctrl){
 	return 0;
 }
 /**
-  * @brief  Funkcja zwraca wartoœc prêdkosci odczytanej z silnika
+  * @brief  Funkcja zwraca wartoï¿½c prï¿½dkosci odczytanej z silnika
   * @param[in]  h: referencja do obiektu slnika
-  * @param[out]  rpm: wskaŸnik do zmiennej wyra¿aj¹cej prêdkosci w obr/min
-  * @retval 0 - brak b³êdów
+  * @param[out]  rpm: wskaï¿½nik do zmiennej wyraï¿½ajï¿½cej prï¿½dkosci w obr/min
+  * @retval 0 - brak bï¿½ï¿½dï¿½w
   */
 int MotorInterface_GetSpeed(tMotorInterfaceHandler h,float *rpm){
 	*rpm = MIH()->rpm;
 	return 0;
 }
 /**
-  * @brief  Funkcja zwraca pozycje kontow¹ silnika oszacowan¹ na podstawie czujników po³o¿enia sinika
+  * @brief  Funkcja zwraca pozycje kontowï¿½ silnika oszacowanï¿½ na podstawie czujnikï¿½w poï¿½oï¿½enia sinika
   * @param[in]  h: referencja do obiektu slnika
-  * @param[out]  angle: k¹t wyrazony w stopniach
-  * @retval 0 - brak b³êdów
+  * @param[out]  angle: kï¿½t wyrazony w stopniach
+  * @retval 0 - brak bï¿½ï¿½dï¿½w
   */
 int MotorInterface_GetPosition(tMotorInterfaceHandler h,float *angle){
 	*angle=MIH()->angle;
 	return 0;
 }
 /**
-  * @brief  Funkcja zwraca wartoœc pr¹du silnika
+  * @brief  Funkcja zwraca wartoï¿½c prï¿½du silnika
   * @param[in]  h: referencja do obiektu slnika
-  * @param[out]  current: pr¹d fazowy wyra¿ony w amperach
-  * @retval 0 - brak b³êdów
+  * @param[out]  current: prï¿½d fazowy wyraï¿½ony w amperach
+  * @retval 0 - brak bï¿½ï¿½dï¿½w
   */
 int MotorInterface_GetCurrent(tMotorInterfaceHandler h,float *current){
 	*current = MIH()->current;
 	return 0;
 }
 /**
-  * @brief  Funkcja zwraca wartoœc napiêcia na zaciskach akumulatora
+  * @brief  Funkcja zwraca wartoï¿½c napiï¿½cia na zaciskach akumulatora
   * @param[in]  h: referencja do obiektu slnika
-  * @param[out]  voltage: napiêcie wyra¿one w voltach
-  * @retval 0 - brak b³êdów
+  * @param[out]  voltage: napiï¿½cie wyraï¿½one w voltach
+  * @retval 0 - brak bï¿½ï¿½dï¿½w
   */
 int MotorInterface_GetVoltage(tMotorInterfaceHandler h,float *voltage){
 	*voltage = MIH()->voltage;
@@ -142,7 +142,7 @@ int MotorInterface_GetVoltage(tMotorInterfaceHandler h,float *voltage){
   * @brief  Funkcja zwraca informacje o trybie pracy silnika
   * @param[in]  h: referencja do obiektu slnika
   * @param[out]  mode: aktualny tryb pracy sterownika
-  * @retval 0 - brak b³êdów
+  * @retval 0 - brak bï¿½ï¿½dï¿½w
   */
 int MotorInterface_GetState(tMotorInterfaceHandler h,tMotorInterfaceMode *mode){
 	*mode = MIH()->mode;
@@ -150,7 +150,7 @@ int MotorInterface_GetState(tMotorInterfaceHandler h,tMotorInterfaceMode *mode){
 }
 /* Private functions ---------------------------------------------------------*/
 /**
-  * @brief  W¹tek przetwarza dane przychodz¹ce od silnika
+  * @brief  Wï¿½tek przetwarza dane przychodzï¿½ce od silnika
   * @param[in]  None
   * @retval None
   */
@@ -161,9 +161,9 @@ void MotorInterface_Task(void* ptr){
 	mi->parser.state=0;
 	while(1){
 		if(CAN2UART_Receive(mi->com,&c,100)==0){
-			//odebra³em znak, parsujê ramkê
+			//odebraï¿½em znak, parsujï¿½ ramkï¿½
 			if(MotorInterface_Parse(mi,c)){
-				//skompletowa³em ramkê, dokonujê jej analizy
+				//skompletowaï¿½em ramkï¿½, dokonujï¿½ jej analizy
 				switch(mi->parser.dataFrame.id){
 				case 0:
 					break;
@@ -189,7 +189,7 @@ void MotorInterface_Task(void* ptr){
 	}
 }
 /**
-  * @brief  Funkcja formatuje i wysy³a ramkê do sterownika silnika
+  * @brief  Funkcja formatuje i wysyï¿½a ramkï¿½ do sterownika silnika
   * @param[in]  None
   * @retval None
   */
@@ -235,7 +235,7 @@ int  MotorInterface_Parse(tMotorInterface *mi,char c){
 	case 3:
 		mi->parser.dataFrame.data[mi->parser.cnt++]=c;
 		if(mi->parser.cnt>=mi->parser.size){
-			//skompletowa³em ramkê
+			//skompletowaï¿½em ramkï¿½
 			mi->parser.state=0;
 			return 1;
 		}else{
@@ -245,7 +245,7 @@ int  MotorInterface_Parse(tMotorInterface *mi,char c){
 	return 0;
 }
 /**
-  * @brief  Funkcja dokonuje przekodowania wartoœci odczytanych z pomiarow na wartoœci wyra¿one w jednostkach fizycznych
+  * @brief  Funkcja dokonuje przekodowania wartoï¿½ci odczytanych z pomiarow na wartoï¿½ci wyraï¿½one w jednostkach fizycznych
   * @param[in]  None
   * @retval None
   */
@@ -253,18 +253,18 @@ void MotorInterface_ParseNewMeasurement(tMotorInterface *mi,char* buffer,int siz
 	unsigned short tmp;
 	if(size>=8){
 		tmp = *(unsigned short*)&buffer[2];
-		mi->voltage = (float)tmp*0.01543;/*wspó³czynnik skaluj¹cy wynika z podzia³u dzielnika=0.052212,
-																		   rozdizelczoœci przetwornika=12bit,
-																		   napiêcia referencyjnego=3.3V*/
+		mi->voltage = (float)tmp*0.01543;/*wspï¿½czynnik skalujï¿½cy wynika z podziaï¿½u dzielnika=0.052212,
+																		   rozdizelczoï¿½ci przetwornika=12bit,
+																		   napiï¿½cia referencyjnego=3.3V*/
 		tmp = *(unsigned short*)&buffer[0];
-		mi->current = ((int)tmp - (int)mi->currentRef)*0.0105;/* Wspólczynnik skaluj¹cy pradu*/
+		mi->current = ((int)tmp - (int)mi->currentRef)*0.0105;/* Wspï¿½lczynnik skalujï¿½cy pradu*/
 		mi->rpm = *(signed short*)&buffer[4];
 		tmp = *(unsigned short*)&buffer[6];
 		mi->angle = (int)(tmp - mi->angleOffset)*360/(6*15);
 	}
 }
 /**
-  * @brief  Funkcja zg³asza fakt wykrycia zmiany stanu silnika
+  * @brief  Funkcja zgï¿½asza fakt wykrycia zmiany stanu silnika
   * @param[in]  None
   * @retval None
   */

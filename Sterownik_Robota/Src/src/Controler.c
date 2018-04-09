@@ -22,6 +22,7 @@
 #include "usart.h"
 #include "UartLogStreamer.h"
 #include "LedIndicator.h"
+#include "Radio.h"
 /* Private typedef -----------------------------------------------------------*/
 typedef enum{eSupervisorLeftMotorInactive=0,/*<lewy silnik w trybie nieaktywnym*/
 			eSupervisorRightMotorInactive,/*<prawy silnik w trybie nieaktywnym*/
@@ -46,6 +47,7 @@ typedef struct{
 	tMPUMeasuremenet mmpu;
 	tLogerHandler loger;
 	tLedIndictorHandler ledIndicator;
+	void* radio;
 	xTaskHandle task;
 	xTaskHandle supervisorTask;
 	xQueueHandle supervisorMsgQueue;
@@ -94,6 +96,11 @@ int Controler_Init(void){
 	if(OsUART_Init(&controler.huart,&huart1)){
 		return 4;
 	}
+	//inicjuje moduł radioodbornika
+	controler.radio=Radio_Init(7);
+	//aktywuje timer od pomiarów z radioodbiornika
+	HAL_TIM_Base_Start(&htim10);
+	HAL_TIM_IC_Start_IT(&htim10,TIM_CHANNEL_1);
 	//inicjuje moduł logera
 	logCfg.dtms=100;
 	logCfg.maxNumberOfParams=30;
@@ -327,6 +334,16 @@ void TIM8_UP_TIM13_IRQHandler(void)
 {
 	__HAL_TIM_CLEAR_IT(&htim8, TIM_IT_UPDATE);
 	ulHighFrequencyTimerTicks++;
+}
+/**
+  * @brief Funkcja przerwania od kanału licznika TIM10
+  * Funkcja przenosi informacje z kanału pomiarowego podłącoznego do radioodbiornika
+  * @param[in]  None
+  * @retval None
+  */
+void TIM1_UP_TIM10_IRQHandler(void){
+	__HAL_TIM_CLEAR_IT(&htim10, TIM_IT_CC1);
+	Radio_Update(controler.radio,TIM10->CCR1);
 }
 /**
   * @brief
