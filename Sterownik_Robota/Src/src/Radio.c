@@ -81,6 +81,14 @@ unsigned short Radio_GetPwmValue(int channal){
 	}
 }
 /**
+  * @brief  Funkcja zwraca refernecję do tablicy pomiarów po konwersji
+  * @param[in]  None
+  * @retval None
+  */
+int* Radio_GetChannelMeasurements(void){
+	return radio->convertedValue;
+}
+/**
   * @brief  Funkcja dokonuje analizy rejestrowanych czasow zboczy i zamienia je na informacje
 	* 				przyporzadkowana odpowiednim kanalom
   * @param  time - czas wykrycia zbocza

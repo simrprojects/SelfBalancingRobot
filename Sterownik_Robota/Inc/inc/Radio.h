@@ -16,6 +16,7 @@
 void* Radio_Init(int numberOfChannels);
 signed int Radio_GetValue(int channal);
 unsigned short Radio_GetPwmValue(int channal);
+int* Radio_GetChannelMeasurements(void);
 void Radio_Update(void* handler,unsigned int time);
 
 #endif

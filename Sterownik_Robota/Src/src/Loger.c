@@ -111,11 +111,17 @@ int Loger_CloseSesion(tLogerHandler h){
 int Loger_Convert2Text(char* buf,tLogerParamType type,void* data){
 	switch(type){
 	case eParamTypeU8:
-		return sprintf(buf,"%d; ",*(char*)data);
+		return sprintf(buf,"%d; ",*(unsigned char*)data);
+	case eParamTypeI8:
+		return sprintf(buf,"%d; ",*(signed char*)data);
 	case eParamTypeU16:
 		return sprintf(buf,"%d; ",*(unsigned short*)data);
+	case eParamTypeI16:
+		return sprintf(buf,"%d; ",*(signed short*)data);
 	case eParamTypeU32:
 		return sprintf(buf,"%d; ",*(unsigned int*)data);
+	case eParamTypeI32:
+		return sprintf(buf,"%d; ",*(signed int*)data);
 	case eParamTypeSGL:
 		return sprintf(buf,"%f; ",*(float*)data);
 	}

@@ -16,7 +16,7 @@ typedef struct{
 	int maxNumberOfParams;/*<maksymalna liczba logowanych parametrów*/
 	int dtms;/*<okres wykonywania logu wyrażony w ms*/
 }tLogerCfg;
-typedef enum{eParamTypeU8,eParamTypeU16,eParamTypeU32,eParamTypeSGL}tLogerParamType;
+typedef enum{eParamTypeU8,eParamTypeI8,eParamTypeU16,eParamTypeI16,eParamTypeU32,eParamTypeI32,eParamTypeSGL}tLogerParamType;
 
 typedef enum{eLR_OpenSesjon=0,eLR_CloseSesjon}tLogerRequest;
 

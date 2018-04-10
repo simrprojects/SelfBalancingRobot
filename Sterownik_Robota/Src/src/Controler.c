@@ -50,6 +50,7 @@ typedef struct{
 	tLogerHandler loger;
 	tLedIndictorHandler ledIndicator;
 	void* radio;
+	int* radioMeasuremenets;
 	xTaskHandle task;
 	xTaskHandle supervisorTask;
 	xQueueHandle supervisorMsgQueue;
@@ -100,6 +101,7 @@ int Controler_Init(void){
 	}
 	//inicjuje moduł radioodbornika
 	controler.radio=Radio_Init(7);
+	controler.radioMeasuremenets = Radio_GetChannelMeasurements();
 	//aktywuje timer od pomiarów z radioodbiornika
 	HAL_TIM_Base_Start(&htim10);
 	HAL_TIM_IC_Start_IT(&htim10,TIM_CHANNEL_1);
@@ -168,9 +170,12 @@ void Controler_Task(void* ptr){
 	Loger_AddParams(controler.loger,&controler.mmpu.acceleration[2],"acc_z",eParamTypeSGL);*/
 	Loger_AddParams(controler.loger,&controler.leftMotorMeasurement->voltage,"leftMotor_Voltage",eParamTypeSGL);
 	Loger_AddParams(controler.loger,&controler.rightMotorMeasurement->voltage,"rightMotor_Voltage",eParamTypeSGL);
-	Loger_AddParams(controler.loger,&controler.leftMotorMeasurement->current,"leftMotor_current",eParamTypeSGL);
-	Loger_AddParams(controler.loger,&controler.rightMotorMeasurement->current,"rightMotor_current",eParamTypeSGL);
-	Loger_AddParams(controler.loger,&controler.mmpu.rpy[2],"yaw",eParamTypeSGL);
+	//Loger_AddParams(controler.loger,&controler.leftMotorMeasurement->current,"leftMotor_current",eParamTypeSGL);
+	//Loger_AddParams(controler.loger,&controler.rightMotorMeasurement->current,"rightMotor_current",eParamTypeSGL);
+	Loger_AddParams(controler.loger,&controler.radioMeasuremenets[Channel_LeftVertical],"radio_left_v",eParamTypeU32);
+	Loger_AddParams(controler.loger,&controler.radioMeasuremenets[Channel_LeftHorizontal],"radio_left_h",eParamTypeU32);
+	Loger_AddParams(controler.loger,&controler.radioMeasuremenets[Channel_RightVertical],"radio_right_v",eParamTypeU32);
+	Loger_AddParams(controler.loger,&controler.radioMeasuremenets[Channel_RightHorizontal],"radio_right_h",eParamTypeU32);
 	//uruchamiam licznik do przechwytywania zdażeń od MPU
 	HAL_TIM_Base_Start(&htim12);
 	HAL_TIM_IC_Start_IT(&htim12,TIM_CHANNEL_1);
