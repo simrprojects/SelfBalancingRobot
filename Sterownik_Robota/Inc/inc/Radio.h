@@ -7,10 +7,10 @@
 
 //#include "TimChManager.h"
 
-#define Channel_LeftVertical	1
-#define Channel_LeftHorizontal	0
+#define Channel_LeftVertical	0
+#define Channel_LeftHorizontal	3
 #define Channel_RightVertical	2
-#define Channel_RightHorizontal	3
+#define Channel_RightHorizontal	1
 #define Channel_Switch_1	6
 
 void* Radio_Init(int numberOfChannels);

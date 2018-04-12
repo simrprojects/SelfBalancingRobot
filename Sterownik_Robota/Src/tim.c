@@ -136,7 +136,7 @@ void MX_TIM10_Init(void)
   TIM_IC_InitTypeDef sConfigIC;
 
   htim10.Instance = TIM10;
-  htim10.Init.Prescaler = 108;
+  htim10.Init.Prescaler = 216*1-1;//215;
   htim10.Init.CounterMode = TIM_COUNTERMODE_UP;
   htim10.Init.Period = 0xffff;
   htim10.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
@@ -151,7 +151,7 @@ void MX_TIM10_Init(void)
     _Error_Handler(__FILE__, __LINE__);
   }
 
-  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
+  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_FALLING;
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
   sConfigIC.ICFilter = 0;

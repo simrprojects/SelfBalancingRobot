@@ -17,7 +17,6 @@
 #include "tim.h"
 #include "Loger.h"
 /* Private define ------------------------------------------------------------*/
-#define PPM_NUMBER_OF_CHANNELS						 7
 /* Private typedef -----------------------------------------------------------*/
 typedef struct{
 	unsigned short *value;
@@ -50,6 +49,10 @@ void* Radio_Init(int numberOfChannels){
 	r->numberOfSerialChannels=numberOfChannels;
 	r->convertedValue = pvPortMalloc(sizeof(int)*numberOfChannels);
 	r->value = pvPortMalloc(sizeof(unsigned short)*numberOfChannels);
+	for(int i=0;i<numberOfChannels;i++){
+		r->convertedValue[i]=0;
+		r->value[i]=1500;
+	}
 	//kolejka
 	r->queue=xQueueCreate(50,sizeof(int));
 	//watek radioodbiornika
@@ -62,7 +65,7 @@ void* Radio_Init(int numberOfChannels){
   * @retval None
   */
 signed int Radio_GetValue(int channel){
-	if(channel<PPM_NUMBER_OF_CHANNELS){
+	if(channel<radio->numberOfSerialChannels){
 		return radio->convertedValue[channel];
 	}else{
 		return 0;
@@ -74,7 +77,7 @@ signed int Radio_GetValue(int channel){
   * @retval None
   */
 unsigned short Radio_GetPwmValue(int channal){
-	if(channal<PPM_NUMBER_OF_CHANNELS){
+	if(channal<radio->numberOfSerialChannels){
 		return radio->value[channal];
 	}else{
 		return 0;
@@ -94,6 +97,8 @@ int* Radio_GetChannelMeasurements(void){
   * @param  time - czas wykrycia zbocza
   * @retval None
   */
+unsigned short radio_buf[64];
+int rcnt=0;
 void Radio_Update(void* handler,unsigned int time){
 	tRadio *radio = (tRadio*)handler;
 	static char firstTrigger = 0; //Znacznik pierwszego wyzwolenia timera
@@ -106,13 +111,16 @@ void Radio_Update(void* handler,unsigned int time){
 			lastTrigger = time;
 			firstTrigger = 1;
 		} else { //Jezeli jest to kolejne wyzwolenie przeliczamy czas pomiedzy aktualnym a poprzednim
-            capture = time - lastTrigger;
-            lastTrigger = time;
+            capture = ((unsigned short)time - lastTrigger);
+
+
 			if (capture > 4000) { //Jezeli wykryto impuls synchronizacji	
                 //w odbiorniku HOTT mozna wykryc utrate nadajnika po dlugosci impulsu synchronizujacego
                 if(capture>15000){
                     //wykryto utrate poloczenia
-                    radio->lostConnection=1;
+                    //radio->lostConnection=1;
+                	radio_buf[rcnt++]=capture;
+                	rcnt&=0x3F;
                 }else{
                     //poprawny impuls synchronizujacy ramke
                     if(frameComplete){
@@ -120,7 +128,7 @@ void Radio_Update(void* handler,unsigned int time){
                         radio->lostConnection=0;
                     }
                     //ustawiam liczbe kanalow
-                    radio->numberOfSerialChannels = channelCounter;
+                    //radio->numberOfSerialChannels = channelCounter;
                 }
                 frameComplete = 0;
                 channelCounter = 0;
@@ -138,6 +146,7 @@ void Radio_Update(void* handler,unsigned int time){
                     }
                 }
 			}
+			lastTrigger = time;
 		}
 }
 /* Private functions ---------------------------------------------------------*/

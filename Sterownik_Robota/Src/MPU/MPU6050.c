@@ -26,6 +26,8 @@ typedef struct{
 	xQueueHandle measurementQueue;
 	xQueueHandle syncQueue;
 	xTaskHandle task;
+	float gyro_sens;
+	float acc_sens;
 }tMPU6050;
 /* Private define ------------------------------------------------------------*/
 #define MPUREF()	((tMPU6050*)h)
@@ -131,6 +133,7 @@ void MPU6050_ReadDMPFIFO(tMPU6050 *mpu){
     long long int quat[4];
     float quatf[4],quat2[4];
     float roll, pitch, yaw;
+    float acc_sens,gyro_sens;
 
 	if( !dmp_read_fifo(gyro, accel, quat, &sensor_timestamp, &sensors,&more) ){
 		//wyliczam kwadraty
@@ -155,13 +158,15 @@ void MPU6050_ReadDMPFIFO(tMPU6050 *mpu){
 			pitch = 57.2*asinf(2*quatf[2]*quatf[3]+2*quatf[0]*quatf[1]);
 		    yaw = 57.2*atan2f( -2*quatf[1]*quatf[2] + 2*quatf[0]*quatf[3] , quat2[2] - quat2[3] - quat2[1] + quat2[0] );
 
-		    mpu->measurement.acceleration[0]=accel[0];
-		    mpu->measurement.acceleration[1]=accel[1];
-		    mpu->measurement.acceleration[2]=accel[2];
+		    acc_sens=mpu->acc_sens;
+		    gyro_sens = mpu->gyro_sens;
+		    mpu->measurement.acceleration[0]=(float)accel[0]*acc_sens;
+		    mpu->measurement.acceleration[1]=(float)accel[1]*acc_sens;
+		    mpu->measurement.acceleration[2]=(float)accel[2]*acc_sens;
 
-		    mpu->measurement.omega[0]=gyro[0];
-		    mpu->measurement.omega[1]=gyro[1];
-		    mpu->measurement.omega[2]=gyro[2];
+		    mpu->measurement.omega[0]=(float)gyro[0]*gyro_sens;
+		    mpu->measurement.omega[1]=(float)gyro[1]*gyro_sens;
+		    mpu->measurement.omega[2]=(float)gyro[2]*gyro_sens;
 		    mpu->measurement.rpy[0]=roll;
 		    mpu->measurement.rpy[1]=pitch;
 		    mpu->measurement.rpy[2]=yaw;
@@ -184,6 +189,7 @@ int MPU6050_DMPConfig(tMPU6050 *mpu){
 	if(mpu_init(&int_param)){
 		return 1;//błąd konfiguracji MPU
 	}
+
 	///////////////////////////////////////////////////////////
 
 	/*
@@ -192,6 +198,13 @@ int MPU6050_DMPConfig(tMPU6050 *mpu){
 	if(mpu_set_sensors(INV_XYZ_GYRO | INV_XYZ_ACCEL )){
 		return 2;//błąd wybudzenia czujników
 	}
+	/*if(mpu_set_gyro_fsr(500)){
+		return 1;//błąd ustawienia czułości
+	}
+	if(mpu_set_accel_fsr(2)){
+		return 1;//błąd ustawienia czułości akcelerometru
+	}*/
+
 	///////////////////////////////////////////////////////////////////////////////
 
 	/*
@@ -233,7 +246,7 @@ int MPU6050_DMPConfig(tMPU6050 *mpu){
 	 * konfiguracja DMP
 	 */
 	uart_putstring("Konfiguracja features DMP...\n");
-	if(0==dmp_enable_feature(DMP_FEATURE_6X_LP_QUAT | DMP_FEATURE_SEND_RAW_ACCEL| DMP_FEATURE_SEND_CAL_GYRO | DMP_FEATURE_TAP)) uart_putstring("OK \r\n");
+	if(0==dmp_enable_feature(DMP_FEATURE_6X_LP_QUAT | DMP_FEATURE_GYRO_CAL | DMP_FEATURE_SEND_RAW_ACCEL| DMP_FEATURE_SEND_CAL_GYRO /*| DMP_FEATURE_TAP*/)) uart_putstring("OK \r\n");
 	////////////////////////////////////////////////////////////////////
 	/*
 	 *  czestotliwosc FIFO
@@ -241,12 +254,19 @@ int MPU6050_DMPConfig(tMPU6050 *mpu){
 	uart_putstring("Ustawienie fifo rate...\n");
 	if(0==dmp_set_fifo_rate(DEFAULT_MPU_HZ)) uart_putstring("OK \r\n");
 	/////////////////////////////////////////////////////
+	//odczytuje czułości
+	mpu_get_gyro_sens(&mpu->gyro_sens);
+	mpu->gyro_sens = 1/mpu->gyro_sens;
+	unsigned short acc;
+	mpu_get_accel_sens(&acc);
+	mpu->acc_sens = 1/(float)acc;
 
 	/*
 	 *  wlaczenie DMP
 	 */
 	uart_putstring("Wlaczenie DMP...\n");
 	if(0==mpu_set_dmp_state(1)) uart_putstring("OK \r\n");
+
 	return 0;
 }
 
