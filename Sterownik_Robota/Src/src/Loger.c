@@ -127,6 +127,30 @@ int Loger_Convert2Text(char* buf,tLogerParamType type,void* data){
 	}
 	return 0;
 }
+/**
+  * @brief  Pomocnicza funkcja realizująca konwersję zmiennej binarnej na zmienną typu float
+  * @param[in]  None
+  * @retval None
+  */
+float Loger_Convert2Float(tLogerParamType type,void* data){
+	switch(type){
+	case eParamTypeU8:
+		return (float)*(unsigned char*)data;
+	case eParamTypeI8:
+		return (float)*(signed char*)data;
+	case eParamTypeU16:
+		return (float)*(unsigned short*)data;
+	case eParamTypeI16:
+		return (float)*(signed short*)data;
+	case eParamTypeU32:
+		return (float)*(unsigned int*)data;
+	case eParamTypeI32:
+		return (float)*(signed int*)data;
+	case eParamTypeSGL:
+		return *(float*)data;
+	}
+	return 0;
+}
 /* Private functions ---------------------------------------------------------*/
 /**
   * @brief  Wątek przetwarzający rekordy logera

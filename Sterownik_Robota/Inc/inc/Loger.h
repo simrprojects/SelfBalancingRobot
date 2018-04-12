@@ -48,5 +48,6 @@ int Loger_AddParams(tLogerHandler h,void* paramRef,char* paramName,tLogerParamTy
 int Loger_OpenSesion(tLogerHandler h);
 int Loger_CloseSesion(tLogerHandler h);
 int Loger_Convert2Text(char* buf,tLogerParamType type,void* data);
+float Loger_Convert2Float(tLogerParamType type,void* data);
 
 #endif /* INC_LOGER_H_ */

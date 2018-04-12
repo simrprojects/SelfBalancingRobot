@@ -21,6 +21,7 @@
 #include "tim.h"
 #include "usart.h"
 #include "UartLogStreamer.h"
+#include "LabViewUartStreamer.h"
 #include "LedIndicator.h"
 #include "Radio.h"
 /* Private typedef -----------------------------------------------------------*/
@@ -84,7 +85,8 @@ int Controler_Init(void){
 	tCAN2UARTConfig c2uc;
 	tMotorInterfaceConfig mic;
 	tLogerCfg logCfg;
-	tUartStreamConfig uartStreamCfg;
+	//tUartStreamConfig uartStreamCfg;
+	tLabViewUartStreamConfig lvUartStreamCfg;
 	//inicjuje modu� CAN
 	cfg.rxBufferSize=30;
 	OSCan_Init(&hcan1,&cfg);
@@ -110,10 +112,15 @@ int Controler_Init(void){
 	logCfg.maxNumberOfParams=30;
 	logCfg.memoryPoolSize=0;
 
-	uartStreamCfg.bufferPtr=0;
+	/*uartStreamCfg.bufferPtr=0;
 	uartStreamCfg.bufferSize = 512;
-	uartStreamCfg.huart = controler.huart;
-	Loger_Create(&controler.loger,&logCfg,UartLogStreamer_Init(&uartStreamCfg));
+	uartStreamCfg.huart = controler.huart;*/
+
+	lvUartStreamCfg.bufferPtr=0;
+	lvUartStreamCfg.bufferSize = logCfg.maxNumberOfParams*4+7;
+	lvUartStreamCfg.huart = controler.huart;
+	//Loger_Create(&controler.loger,&logCfg,UartLogStreamer_Init(&uartStreamCfg));
+	Loger_Create(&controler.loger,&logCfg,LabViewUartStreamer_Init(&lvUartStreamCfg));
 
 	//inicjuje modu� interfejsu silnik�w
 	mic.c2u = controler.c2uf;
