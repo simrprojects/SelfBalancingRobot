@@ -108,7 +108,7 @@ int Controler_Init(void){
 	HAL_TIM_Base_Start(&htim10);
 	HAL_TIM_IC_Start_IT(&htim10,TIM_CHANNEL_1);
 	//inicjuje moduł logera
-	logCfg.dtms=100;
+	logCfg.dtms=20;
 	logCfg.maxNumberOfParams=30;
 	logCfg.memoryPoolSize=0;
 
@@ -176,14 +176,14 @@ void Controler_Task(void* ptr){
 	Loger_AddParams(controler.loger,&controler.mmpu.acceleration[0],"acc_x",eParamTypeSGL);
 	Loger_AddParams(controler.loger,&controler.mmpu.acceleration[1],"acc_y",eParamTypeSGL);
 	Loger_AddParams(controler.loger,&controler.mmpu.acceleration[2],"acc_z",eParamTypeSGL);
-	/*Loger_AddParams(controler.loger,&controler.leftMotorMeasurement->voltage,"leftMotor_Voltage",eParamTypeSGL);
-	Loger_AddParams(controler.loger,&controler.rightMotorMeasurement->voltage,"rightMotor_Voltage",eParamTypeSGL);*/
-	//Loger_AddParams(controler.loger,&controler.leftMotorMeasurement->current,"leftMotor_current",eParamTypeSGL);
-	//Loger_AddParams(controler.loger,&controler.rightMotorMeasurement->current,"rightMotor_current",eParamTypeSGL);
-	/*Loger_AddParams(controler.loger,&controler.radioMeasuremenets[Channel_LeftVertical],"radio_left_v",eParamTypeU32);
-	Loger_AddParams(controler.loger,&controler.radioMeasuremenets[Channel_LeftHorizontal],"radio_left_h",eParamTypeU32);
-	Loger_AddParams(controler.loger,&controler.radioMeasuremenets[Channel_RightVertical],"radio_right_v",eParamTypeU32);
-	Loger_AddParams(controler.loger,&controler.radioMeasuremenets[Channel_RightHorizontal],"radio_right_h",eParamTypeU32);*/
+	Loger_AddParams(controler.loger,&controler.leftMotorMeasurement->voltage,"leftMotor_Voltage",eParamTypeSGL);
+	Loger_AddParams(controler.loger,&controler.rightMotorMeasurement->voltage,"rightMotor_Voltage",eParamTypeSGL);
+	Loger_AddParams(controler.loger,&controler.leftMotorMeasurement->current,"leftMotor_current",eParamTypeSGL);
+	Loger_AddParams(controler.loger,&controler.rightMotorMeasurement->current,"rightMotor_current",eParamTypeSGL);
+	Loger_AddParams(controler.loger,&controler.radioMeasuremenets[Channel_LeftVertical],"radio_left_v",eParamTypeI32);
+	Loger_AddParams(controler.loger,&controler.radioMeasuremenets[Channel_LeftHorizontal],"radio_left_h",eParamTypeI32);
+	Loger_AddParams(controler.loger,&controler.radioMeasuremenets[Channel_RightVertical],"radio_right_v",eParamTypeI32);
+	Loger_AddParams(controler.loger,&controler.radioMeasuremenets[Channel_RightHorizontal],"radio_right_h",eParamTypeI32);
 	//uruchamiam licznik do przechwytywania zdażeń od MPU
 	HAL_TIM_Base_Start(&htim12);
 	HAL_TIM_IC_Start_IT(&htim12,TIM_CHANNEL_1);

@@ -90,6 +90,7 @@ int LabViewUartStreamer_tUpdateLogerSesion(tLogDescriptor* descriptor){
 	tParamDescriptor *array = descriptor->paramsArray;
 	char* buffer = uart->buffer;
 	float* data = uart->data;
+	float tmp;
 	//sprawdzam, czy liczba danych nie jest większa od miejsca w buforze
 	if(numOfRecords>uart->bufferSize){
 		numOfRecords=uart->bufferSize;
@@ -102,7 +103,8 @@ int LabViewUartStreamer_tUpdateLogerSesion(tLogDescriptor* descriptor){
 	//przetwarzam tablice zmiennych
 	for(int i=0;i<numOfRecords;i++){
 		//dokonuje konwersji zgodnie z typem parametru
-		data[i] = Loger_Convert2Float(array[i].type,array[i].src);
+		tmp = Loger_Convert2Float(array[i].type,array[i].src);
+		data[i]=tmp;
 	}
 	//po konwersji, wysyłam dane
 	return OsUART_Transmit(uart->huart,(unsigned char*)buffer,numOfRecords*4+5,0);
