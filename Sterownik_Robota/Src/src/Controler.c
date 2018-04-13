@@ -70,6 +70,7 @@ volatile unsigned long ulHighFrequencyTimerTicks = 0;
 void Controler_Task(void* ptr);
 void Controler_SupervisorTask(void* ptr);
 void Controler_SenderTask(void* ptr);
+void Controler_ControlProcesUpdate(void);
 void Supervisor_NewMsg(tSupervisorMsg msg);
 void Supervisor_SwitchToNewState(tSupervisorSystemState newState);
 /* Public  functions ---------------------------------------------------------*/
@@ -202,13 +203,15 @@ void Controler_Task(void* ptr){
 			//nie odebrano pomiaru z MPU, zgłaszam problem
 			Supervisor_NewMsg(eSupervisorMPUSensorNoTrigger);
 		}
-		//wyknuje operacje zgodnie ze stanem w którym się znajduje
+		//wykonuje operacje zgodnie ze stanem w którym się znajduje
 		switch(controler.supervisor.state){
 		case eSystem_InternalInit:
 			break;
 		case eSystem_MotorInit:/*<tryb inicjacji silników i oczekiwania na przełączenie w tryb pracy aktywnej*/
 			break;
 		case eSystem_ReadyToWork:/*<tryb aktywnej pracy silników bez stabilizacji robota*/
+			//wykonuje obliczenia pętli regulcyjnej
+			Controler_ControlProcesUpdate();
 			cnt++;
 			if(cnt>=2){
 				//wysyłam sterownaie na CAN
@@ -286,6 +289,14 @@ void Controler_SupervisorTask(void* ptr){
 			}
 		}
 	}
+}
+/**
+  * @brief  Funkcja obliczająca sterowanie na podstawie pomiarów i wartości zadanych
+  * @param[in]  None
+  * @retval None
+  */
+void Controler_ControlProcesUpdate(void){
+
 }
 /**
   * @brief  Funkcja zgłasza nowe zdażenie dla modułu nadzorującego pracę systemu

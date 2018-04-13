@@ -25,6 +25,7 @@ typedef struct{
 	tMotorMeasuremenets measurements;
 	unsigned short currentRef;/*< warto�c srednia pradu z pomiaru gdy prad nie p�ynie*/
 	unsigned short angleOffset;
+	char reversMode:1;
 	struct{
 		int state;
 		int size;
@@ -68,6 +69,7 @@ int MotorInterface_Init(tMotorInterfaceHandler *h,tMotorInterfaceConfig *cfg){
 	mi->angleOffset=0;
 	mi->currentRef=2100;
 	mi->mode = eInactiveMode;
+	mi->reversMode = cfg->reversMode;
 	//tworze w�tek kontrolny
 	xTaskCreate(MotorInterface_Task,"motorInterface",256,mi,4,&mi->task);
 	*h=mi;
@@ -93,8 +95,13 @@ int MotorInterface_SetMode(tMotorInterfaceHandler h,tMotorInterfaceMode mode){
   * @retval 0 - brak b��d�w
   */
 int MotorInterface_UpdateControl(tMotorInterfaceHandler h,int ctrl){
-	signed short uctrl = ctrl;
+	signed short uctrl;
 	if(MIH()->mode==eActiveMode){
+		if(MIH()->reversMode){
+			uctrl = -ctrl;
+		}else{
+			uctrl = ctrl;
+		}
 		MotorInterface_SendMessage(MIH()->com,4,&uctrl,2);
 	}
 	return 0;
@@ -267,7 +274,11 @@ void MotorInterface_ParseNewMeasurement(tMotorInterface *mi,char* buffer,int siz
 																		   napi�cia referencyjnego=3.3V*/
 		tmp = *(unsigned short*)&buffer[0];
 		mi->measurements.current = ((int)tmp - (int)mi->currentRef)*0.0105;/* Wsp�lczynnik skaluj�cy pradu*/
-		mi->measurements.rpm = *(signed short*)&buffer[4];
+		if(mi->reversMode){
+			mi->measurements.rpm = -*(signed short*)&buffer[4];
+		}else{
+			mi->measurements.rpm = *(signed short*)&buffer[4];
+		}
 		tmp = *(unsigned short*)&buffer[6];
 		mi->measurements.angle = (int)(tmp - mi->angleOffset)*360/(6*15);
 	}
