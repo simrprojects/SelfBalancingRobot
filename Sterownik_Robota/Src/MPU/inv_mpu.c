@@ -331,6 +331,282 @@ static struct gyro_state_s st = {
 #define MAX_PACKET_LENGTH (12)
 
 /**
+  * @brief  Funkcja odczytujaca aktualne wartosci rejestrow biasow acc.
+  * @param[out]  registers: wskaźnik do tablicy rejestrow
+  * @retval 0 - brak bledow
+  */
+int MPU6050_GetAccelBiasesRegisters(short* registers){
+
+    unsigned char data[6] = {0, 0, 0, 0, 0, 0};
+
+    if (i2c_read(st.hw->addr, 0x06, 2, &data[0]))
+        return -1;
+    if (i2c_read(st.hw->addr, 0x08, 2, &data[2]))
+        return -1;
+    if (i2c_read(st.hw->addr, 0x0A, 2, &data[4]))
+        return -1;
+
+    registers[0] = (short)((short)(data[0]<<8) | data[1]);
+    registers[1] = (short)((short)(data[2]<<8) | data[3]);
+    registers[2] = (short)((short)(data[4]<<8) | data[5]);
+
+	return 0;
+}
+
+/**
+  * @brief  Funkcja odczytujaca aktualne wartosci rejestrow biasow gyro.
+  * @param[out]  registers: wskaźnik do tablicy rejestrow
+  * @retval 0 - brak bledow
+  */
+int MPU6050_GetGyroBiasesRegisters(short* registers){
+
+    unsigned char data[6] = {0, 0, 0, 0, 0, 0};
+
+    if (i2c_read(st.hw->addr, 0x13, 2, &data[0]))
+        return -1;
+    if (i2c_read(st.hw->addr, 0x15, 2, &data[2]))
+        return -1;
+    if (i2c_read(st.hw->addr, 0x17, 2, &data[4]))
+        return -1;
+
+    registers[0] = (short)((short)(data[0]<<8) | data[1]);
+    registers[1] = (short)((short)(data[2]<<8) | data[3]);
+    registers[2] = (short)((short)(data[4]<<8) | data[5]);
+
+	return 0;
+}
+
+/**
+  * @brief  Funkcja ustala wartosci biasow dla gyro i acc. Os "Z" musi byc skierowana w gore.
+  * 		Zaklada sie, ze funkcja wywolywana jest PRZED inicjalizacja MPU/DMP.
+  * @param[out]  acc: wskaznik do typu strukturalnego przechowujacego biasy acc
+  * @param[out]  gyro: wskaznik do typu strukturalnego przechowujacego biasy gyro
+  * @retval 0 - brak bledow
+  */
+int MPU6050_GetAccelGyroBiases(tMPUAccelBiases* acc, tMPUGyroBiases* gyro){
+
+	acc->biases_ok = -1;
+	gyro->biases_ok = -1;
+
+	long gyro_bias[]={0,0,0}, accel_bias[]={0,0,0};
+	unsigned int fifo_count=0;
+	unsigned char ii,packet_count;
+	unsigned char data[12];
+
+	// clock source: PLL with X axis gyro reference - data[0]=0x01;
+	data[0]=0x01;
+	if (i2c_write(st.hw->addr, st.reg->pwr_mgmt_1, 1, data))
+			return -1;
+	data[0]=0x00;
+	if (i2c_write(st.hw->addr, st.reg->pwr_mgmt_2, 1, data))
+			return -1;
+
+	//ToDo: zastapic HAL_delay.
+	HAL_Delay(200);
+
+
+	// wylaczam wszystkie przerwania - data[0]=0x00;
+	if (i2c_write(st.hw->addr, st.reg->int_enable, 1, data))
+			return -1;
+	// wylaczam FIFO - data[0]=0x00;
+	if (i2c_write(st.hw->addr, st.reg->fifo_en, 1, data))
+			return -1;
+	// internal clock source - data[0]=0x00; Dlaczego ?
+	if (i2c_write(st.hw->addr, st.reg->pwr_mgmt_1, 1, data))
+			return -1;
+	// wylaczam i2c master - data[0]=0x00;
+	if (i2c_write(st.hw->addr, st.reg->i2c_mst, 1, data))
+			return -1;
+	// wylaczam FIFO i i2c master - data[0]=0x00;
+	if (i2c_write(st.hw->addr, st.reg->user_ctrl, 1, data))
+			return -1;
+	// resetuje FIFO i DMP data[0]=0b0000 1100;
+	data[0] = BIT_FIFO_RST | BIT_DMP_RST;
+	if (i2c_write(st.hw->addr, st.reg->user_ctrl, 1, data))
+			return -1;
+	//ToDo: zastapic HAL_delay.
+	HAL_Delay(15);
+
+
+	// low pass filter 188Hz - data[0]=0x01;
+	data[0]=st.test->reg_lpf;
+	if (i2c_write(st.hw->addr, st.reg->lpf, 1, data))
+			return -1;
+	// sample rate = 1kHz - data[0]=0x00;
+	data[0]=st.test->reg_rate_div;
+	if (i2c_write(st.hw->addr, st.reg->rate_div, 1, data))
+			return -1;
+
+	// full scale range +-1000degrees per second - data[0]=0x10
+	data[0]=0x10;
+	if (i2c_write(st.hw->addr, st.reg->gyro_cfg, 1, data))
+			return -1;
+	// zapisuje przy jakiej wartosc fsr gyro wyznaczono biasy:
+	gyro->fsr = 1000; // +- 1000dps
+
+	// full scale range +-16g
+	data[0]=0x18;
+	if (i2c_write(st.hw->addr, st.reg->accel_cfg, 1, data))
+			return -1;
+	// zapisuje przy jakiej wartosc fsr acc wyznaczono biasy:
+	acc->fsr = 16; //+- 16g
+	//ToDo: zastapic HAL_delay.
+	HAL_Delay(200);
+
+
+// zapelniam fifo danymi - odczyty z gyro i acc
+	// enable fifo - data[0] = 0x40;
+	data[0] = BIT_FIFO_EN;
+	if (i2c_write(st.hw->addr, st.reg->user_ctrl, 1, data))
+			return -1;
+	// enable gyro and accelerometer for fifo - data[0] = 0x78;
+	data[0] = INV_XYZ_GYRO | INV_XYZ_ACCEL;
+	if (i2c_write(st.hw->addr, st.reg->fifo_en, 1, data))
+			return -1;
+
+// fifo zbiera probki
+	//ToDo: zastapic HAL_delay.
+	HAL_Delay(50);
+// koniec zbierania probek
+
+	// wylaczam fifo - data[0]=0x00;
+	data[0]=0x00;
+	if (i2c_write(st.hw->addr, st.reg->fifo_en, 1, data))
+			return -1;
+	// odczytuje ile sampli zebralo fifo
+	if (i2c_read(st.hw->addr, st.reg->fifo_count_h, 2, data))
+	        return -1;
+	// obliczam ilosc danych w kolejce (przy tych ustawieniach po 50 ms  fifo_count = 612(okolo) )
+	fifo_count = (uint16_t)(data[0]<<8 | data[1]);
+	// liczba kompletnych paczek danych w kolejce// (Max packet length  ? )
+	packet_count = fifo_count/12; // 12 = 6*2bajty
+
+// obliczam srednia wartosc z zebranych probek
+	for(ii=0; ii<packet_count; ii++)
+	{
+		short gyro_temp[3], accel_temp[3];
+		// odczytuje paczke danych
+		if (i2c_read(st.hw->addr, st.reg->fifo_r_w, 12, data))
+				return -1;
+
+		// rozpisuje dane z pojedynczej paczki
+		accel_temp[0] = (short) (((short)(data[0]<<8)) | data[1]);
+		accel_temp[1] = (short) (((short)(data[2]<<8)) | data[3]);
+		accel_temp[2] = (short) (((short)(data[4]<<8)) | data[5]);
+		gyro_temp[0] = (short) (((short)(data[6]<<8)) | data[7]);
+		gyro_temp[1] = (short) (((short)(data[8]<<8)) | data[9]);
+		gyro_temp[2] = (short) (((short)(data[10]<<8)) | data[11]);
+
+		// sumuje do sredniej
+		accel_bias[0] += (long)(accel_temp[0]);
+		accel_bias[1] += (long)(accel_temp[1]);
+		accel_bias[2] += (long)(accel_temp[2]);
+		gyro_bias[0] += (long)(gyro_temp[0]);
+		gyro_bias[1] += (long)(gyro_temp[1]);
+		gyro_bias[2] += (long)(gyro_temp[2]);
+	}
+
+	// obliczam biasy - dziele sume przez liczbe paczek otrzymujac srednia wartosc
+	acc->xyz_biases[0] = (int)(accel_bias[0]/packet_count);
+	acc->xyz_biases[1] = (int)(accel_bias[1]/packet_count);
+	acc->xyz_biases[2] = (int)(accel_bias[2]/packet_count);
+	gyro->xyz_biases[0] = (int)(gyro_bias[0]/packet_count);
+	gyro->xyz_biases[1] = (int)(gyro_bias[1]/packet_count);
+	gyro->xyz_biases[2] = (int)(gyro_bias[2]/packet_count);
+
+//	 usuwam 'grawitacje' z osi "Z" acc - zalozenie ze g jest na osi Z
+
+	if(acc->xyz_biases[2]>0L)
+		acc->xyz_biases[2] -= 32768/acc->fsr; // bo fsr +- 16G
+	else
+		acc->xyz_biases[2] += 32768/acc->fsr;
+
+// zapisuje przy jakiej wartosci rejestrow biasow acc wyznaczono biasy:
+
+	if(MPU6050_GetAccelBiasesRegisters(&acc->xyz_registers[0]))
+		return -2; // blad pobrania rejestrow biasow acc z MPU
+
+	if(MPU6050_GetGyroBiasesRegisters(&gyro->xyz_registers[0]))
+		return -3; // blad pobrania rejestrow biasow gyro z MPU
+
+	acc->biases_ok = 0; // udalo sie pobrac biasy acc
+	gyro->biases_ok = 0; // udalo sie pobrac biasy gyro
+	return 0;
+}
+
+/**
+  * @brief  Funkcja wrzuca biasy acc do odpowiednich rejestrow
+  * 		Zaklada sie, ze funkcja wywolywana jest PO inicjalizacji MPU/DMP.
+  * @param[in]  acc: wskaznik do typu strukturalnego przechowujacego biasy acc
+  * @retval 0 - brak bledow
+  */
+int MPU6050_SetAccelBiases(tMPUAccelBiases* acc){
+
+	if(acc->biases_ok){
+		return -2; // blad - biasy nie zostaly prawidlowo pobrane
+	}
+	else{
+
+		unsigned char data[6]={0,0,0,0,0,0};
+		short to_registers[3]={0,0,0};
+
+		for(unsigned char i=0; i<3; i++){
+		    // Preserve bit 0 of factory value (for temperature compensation)
+		    to_registers[i] = acc->xyz_registers[i] - (acc->xyz_biases[i] & ~1);
+		    data[(i*2)] = ((to_registers[i]>>8) & 0xff);
+		    data[(i*2)+1] = (to_registers[i] & 0xff);
+		}
+
+	    if (i2c_write(st.hw->addr, 0x06, 2, &data[0]))
+	        return -1;
+
+	    if (i2c_write(st.hw->addr, 0x08, 2, &data[2]))
+	        return -1;
+
+	    if (i2c_write(st.hw->addr, 0x0A, 2, &data[4]))
+	        return -1;
+	}
+
+	return 0;
+}
+
+/**
+  * @brief  Funkcja wrzuca biasy gyro do odpowiednich rejestrow
+  * 		Zaklada sie, ze funkcja wywolywana jest PO inicjalizacji MPU/DMP.
+  * @param[in]  gyro: wskaznik do typu strukturalnego przechowujacego biasy gyro
+  * @retval 0 - brak bledow
+  */
+int MPU6050_SetGyroBiases(tMPUGyroBiases* gyro){
+
+	if(gyro->biases_ok){
+		return -2; // blad - biasy nie zostaly prawidlowo pobrane
+	}
+	else{
+
+		unsigned char data[6]={0,0,0,0,0,0};
+		short to_registers[3]={0,0,0};
+
+		for(unsigned char i=0; i<3; i++){
+		    // Preserve bit 0 of factory value (for temperature compensation)
+		    to_registers[i] = gyro->xyz_registers[i] - gyro->xyz_biases[i];
+		    data[(i*2)] = ((to_registers[i]>>8) & 0xff);
+		    data[(i*2)+1] = (to_registers[i] & 0xff);
+		}
+
+	    if (i2c_write(st.hw->addr, 0x13, 2, &data[0]))
+	        return -1;
+
+	    if (i2c_write(st.hw->addr, 0x15, 2, &data[2]))
+	        return -1;
+
+	    if (i2c_write(st.hw->addr, 0x17, 2, &data[4]))
+	        return -1;
+	}
+
+	return 0;
+}
+
+/**
  *  @brief      Enable/disable data ready interrupt.
  *  If the DMP is on, the DMP interrupt is enabled. Otherwise, the data ready
  *  interrupt is used.

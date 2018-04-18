@@ -56,6 +56,27 @@ struct int_param_s {
 #endif
 };
 
+typedef struct{
+	int biases_ok; // biasy zostaly pobrane prawidlowo ?
+	short xyz_biases[3];
+	short xyz_registers[3];
+	unsigned char fsr;
+}tMPUAccelBiases;
+
+typedef struct{
+	int biases_ok; // biasy zostaly pobrane prawidlowo ?
+	short xyz_biases[3];
+	short xyz_registers[3];
+	unsigned short fsr;
+}tMPUGyroBiases;
+
+
+
+/*Offset Biases for Accel and Gyro*/
+int MPU6050_GetAccelGyroBiases(tMPUAccelBiases* acc, tMPUGyroBiases* gyro);
+int MPU6050_SetAccelBiases(tMPUAccelBiases* acc);
+int MPU6050_SetGyroBiases(tMPUGyroBiases* gyro);
+
 /* Set up APIs */
 int mpu_init(struct int_param_s *int_param);
 int mpu_init_slave(void);
