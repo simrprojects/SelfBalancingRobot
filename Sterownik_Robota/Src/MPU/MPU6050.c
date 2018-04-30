@@ -19,6 +19,7 @@
 #include "math.h"
 #include "stdio.h"
 #include "string.h"
+#include "arm_math.h"
 /* Private typedef -----------------------------------------------------------*/
 
 typedef struct{
@@ -154,9 +155,9 @@ void MPU6050_ReadDMPFIFO(tMPU6050 *mpu){
 			quat2[3] = quatf[3]*quatf[3];
 
 
-			roll = 57.2*atan2f( -2*quatf[1]*quatf[3] + 2*quatf[0]*quatf[2] , quat2[3] - quat2[2] - quat2[1] + quat2[0] );
-			pitch = 57.2*asinf(2*quatf[2]*quatf[3]+2*quatf[0]*quatf[1]);
-		    yaw = 57.2*atan2f( -2*quatf[1]*quatf[2] + 2*quatf[0]*quatf[3] , quat2[2] - quat2[3] - quat2[1] + quat2[0] );
+			roll = atan2f( -2*quatf[1]*quatf[3] + 2*quatf[0]*quatf[2] , quat2[3] - quat2[2] - quat2[1] + quat2[0] );
+			pitch = asinf(2*quatf[2]*quatf[3]+2*quatf[0]*quatf[1]);
+		    yaw = atan2f( -2*quatf[1]*quatf[2] + 2*quatf[0]*quatf[3] , quat2[2] - quat2[3] - quat2[1] + quat2[0] );
 
 		    acc_sens=mpu->acc_sens;
 		    gyro_sens = mpu->gyro_sens;
@@ -256,7 +257,7 @@ int MPU6050_DMPConfig(tMPU6050 *mpu){
 	/////////////////////////////////////////////////////
 	//odczytuje czułości
 	mpu_get_gyro_sens(&mpu->gyro_sens);
-	mpu->gyro_sens = 1/mpu->gyro_sens;
+	mpu->gyro_sens = 1/mpu->gyro_sens*PI/180.f;
 	unsigned short acc;
 	mpu_get_accel_sens(&acc);
 	mpu->acc_sens = 1/(float)acc;

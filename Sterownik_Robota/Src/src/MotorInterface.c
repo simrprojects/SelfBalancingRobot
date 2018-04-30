@@ -23,6 +23,7 @@ typedef struct{
 	float rpm;
 	float angle;
 	tMotorMeasuremenets measurements;
+	unsigned int revers:1;
 	unsigned short currentRef;/*< warto�c srednia pradu z pomiaru gdy prad nie p�ynie*/
 	unsigned short angleOffset;
 	struct{
@@ -68,6 +69,7 @@ int MotorInterface_Init(tMotorInterfaceHandler *h,tMotorInterfaceConfig *cfg){
 	mi->angleOffset=0;
 	mi->currentRef=2100;
 	mi->mode = eInactiveMode;
+	mi->revers = cfg->reversMode;
 	//tworze w�tek kontrolny
 	xTaskCreate(MotorInterface_Task,"motorInterface",256,mi,4,&mi->task);
 	*h=mi;
@@ -95,6 +97,9 @@ int MotorInterface_SetMode(tMotorInterfaceHandler h,tMotorInterfaceMode mode){
 int MotorInterface_UpdateControl(tMotorInterfaceHandler h,int ctrl){
 	signed short uctrl = ctrl;
 	if(MIH()->mode==eActiveMode){
+		if(MIH()->revers){
+			uctrl = -uctrl;
+		}
 		MotorInterface_SendMessage(MIH()->com,4,&uctrl,2);
 	}
 	return 0;

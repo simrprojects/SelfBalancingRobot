@@ -24,6 +24,8 @@
 #include "LabViewUartStreamer.h"
 #include "LedIndicator.h"
 #include "Radio.h"
+#include "arm_math.h"
+#include "LinearModules.h"
 /* Private typedef -----------------------------------------------------------*/
 typedef enum{eSupervisorLeftMotorInactive=0,/*<lewy silnik w trybie nieaktywnym*/
 			eSupervisorRightMotorInactive,/*<prawy silnik w trybie nieaktywnym*/
@@ -60,6 +62,16 @@ typedef struct{
 		int rightMotorActive:1;
 		tSupervisorSystemState state;
 	}supervisor;
+	struct{
+		float k_pitch;/*<espółczynnik wzmocenienia od odchyłki kąt*/
+		float k_dpitch;/*<współczynniki wzmocnienia od odchyłki prędkości kątowej*/
+		float k_ipitch;/*<współczynnik wzmocnienia od odchyłki całki kąta*/
+		float e_pitch;
+		float e_dpitch;
+		float e_ipitch;
+		float cv;
+		tIntegrator pitch_integrator;
+	}pid;
 }tControler;
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
@@ -72,6 +84,10 @@ void Controler_SupervisorTask(void* ptr);
 void Controler_SenderTask(void* ptr);
 void Supervisor_NewMsg(tSupervisorMsg msg);
 void Supervisor_SwitchToNewState(tSupervisorSystemState newState);
+float Controler_PitchControlLoop(float pitch_sp,float omegaZ_sp);
+void Controler_YawControlLoop(float omega_yaw_sp,float pitch_cv);
+float Controler_VelocityControlLoop(velocity_sp);
+float Controler_RadioToAngle(signed int radioChValue);
 /* Public  functions ---------------------------------------------------------*/
 /**
   * @brief  Funkcja inicjuje g��wny kontroler ruchu robota
@@ -137,6 +153,9 @@ int Controler_Init(void){
 	if(MotorInterface_Init(&controler.rightMotor,&mic)){
 		return 3;
 	}
+	//wysyłam komendę deinicjującą
+	//MotorInterface_SetMode(controler.leftMotor,eInactiveMode);
+	//MotorInterface_SetMode(controler.rightMotor,eInactiveMode);
 	//inicjuje modu� MPU
 	mpucfg.queueDepth = 24;
 	if(MPU6050_Init(&controler.hmpu,&mpuhw,&mpucfg)){
@@ -152,6 +171,10 @@ int Controler_Init(void){
 	controler.supervisor.state = eSystem_InternalInit;
 	controler.supervisor.leftMotorActive=0;
 	controler.supervisor.rightMotorActive=0;
+	controler.pid.k_pitch=2500.f/45.f*180.f/PI;//przelicznik wzmocnienia proporcjonalnego. odchylenie o 45 stopni powoduje wysterowanie silników na 50%
+	controler.pid.k_dpitch=1000.f/100.f*180.f/PI;//wzmocnenie uchybu predkości: 20% wysterowania przy 100stopniach/sekundę
+	controler.pid.k_ipitch=80;//wzmocnienie uchybu całki odchyłki kąt
+	Integrator_SetTime(&controler.pid.pitch_integrator,0.005);
 	//tworze wątek kontrolera
 	xTaskCreate(Controler_Task,"controller",256,&controler,5,&controler.task);
 	//tworzę wątek zarządzający pracą systemu
@@ -165,7 +188,6 @@ int Controler_Init(void){
   * @retval None
   */
 void Controler_Task(void* ptr){
-	int cnt=0;
 	//dodaje parametry do logowania
 	Loger_AddParams(controler.loger,&controler.mmpu.rpy[0],"roll",eParamTypeSGL);
 	Loger_AddParams(controler.loger,&controler.mmpu.rpy[1],"pitch",eParamTypeSGL);
@@ -184,6 +206,9 @@ void Controler_Task(void* ptr){
 	Loger_AddParams(controler.loger,&controler.radioMeasuremenets[Channel_LeftHorizontal],"radio_left_h",eParamTypeI32);
 	Loger_AddParams(controler.loger,&controler.radioMeasuremenets[Channel_RightVertical],"radio_right_v",eParamTypeI32);
 	Loger_AddParams(controler.loger,&controler.radioMeasuremenets[Channel_RightHorizontal],"radio_right_h",eParamTypeI32);
+	Loger_AddParams(controler.loger,&controler.pid.e_pitch,"pid_e_yaw",eParamTypeSGL);
+	Loger_AddParams(controler.loger,&controler.pid.e_dpitch,"pid_e_yaw",eParamTypeSGL);
+	Loger_AddParams(controler.loger,&controler.pid.cv,"pid_cv",eParamTypeSGL);
 	//uruchamiam licznik do przechwytywania zdażeń od MPU
 	HAL_TIM_Base_Start(&htim12);
 	HAL_TIM_IC_Start_IT(&htim12,TIM_CHANNEL_1);
@@ -209,13 +234,14 @@ void Controler_Task(void* ptr){
 		case eSystem_MotorInit:/*<tryb inicjacji silników i oczekiwania na przełączenie w tryb pracy aktywnej*/
 			break;
 		case eSystem_ReadyToWork:/*<tryb aktywnej pracy silników bez stabilizacji robota*/
-			cnt++;
+			Controler_PitchControlLoop(Controler_RadioToAngle(/*Radio_GetValue(Channel_LeftVertical)*/0),0);
+			/*cnt++;
 			if(cnt>=2){
 				//wysyłam sterownaie na CAN
 				MotorInterface_UpdateControl(controler.leftMotor,Radio_GetValue(Channel_LeftVertical));
 				MotorInterface_UpdateControl(controler.rightMotor,Radio_GetValue(Channel_LeftVertical));
 				cnt=0;
-			}
+			}*/
 			break;
 		case eSystem_RobotStabilisation:/*<tryb pełnej stabilizacji robota*/
 			break;
@@ -223,6 +249,71 @@ void Controler_Task(void* ptr){
 			break;
 		}
 	}
+}
+/**
+  * @brief  Główna funkcja kontrolera
+  * @param[in]  pitch_sp: zadany kąt przechyłu wyrazony w radianach
+  * @param[in]  omegaZ_sp: zadana prędkośc obracania się robota względem osi Z [rad/s]
+  * @retval None
+  */
+float Controler_PitchControlLoop(float pitch_sp,float omegaZ_sp){
+	float cv,e_pitch,e_dpitch,e_ipitch;
+	static int cnt=0;
+	static signed char fb=0;
+#define MAX_CV_OUT	400
+
+	e_pitch = pitch_sp-controler.mmpu.rpy[1];
+	e_dpitch = -controler.mmpu.omega[0];
+	e_ipitch = Integrator_Execute(&controler.pid.pitch_integrator,fb,e_pitch);
+	controler.pid.e_pitch = e_pitch;
+	controler.pid.e_dpitch = e_dpitch;
+	controler.pid.e_ipitch = e_ipitch;
+	cv = e_pitch*controler.pid.k_pitch+e_dpitch*controler.pid.k_dpitch+e_ipitch*controler.pid.k_ipitch;
+	controler.pid.cv=cv;
+	//ograniczam
+	if(cv>MAX_CV_OUT){
+		cv = MAX_CV_OUT;
+		fb=1;
+	}else if(cv<-MAX_CV_OUT){
+		cv = -MAX_CV_OUT;
+		fb=-1;
+	}else{
+		fb=0;
+	}
+	//ustwiam wartości sterujące
+	if(cnt==0){
+		MotorInterface_UpdateControl(controler.leftMotor,cv);
+		MotorInterface_UpdateControl(controler.rightMotor,cv);
+	}
+	cnt++;
+	cnt%=2;
+	return cv;
+}
+/**
+  * @brief  Funkcja regulatora prędkosci pionowej segwaya. Funkcja oddziałuje bezposrednio na silniki
+  * zapewniając odpowiednie sterowanie na każdym silniku.
+  * @param[in]  omega_yaw_sp: wartośc zadana prędkosci obrotowej wokół osi Yaw(pionowej)
+  * @param[in]  pitch_cv: wartosc sterująca wypracowana przez regulator kąta Pitch
+  * @retval None
+  */
+void Controler_YawControlLoop(float omega_yaw_sp,float pitch_cv){
+
+}
+/**
+  * @brief  Pętla sterująca prędkością segwaya. Pętla wyracowuje wartośc zadaną dla regulatora kąta
+  * @param[in]  velocity_sp: prędkośc zadana [m/s]
+  * @retval wartosc zadana kąta pitch
+  */
+float Controler_VelocityControlLoop(velocity_sp){
+
+}
+/**
+  * @brief  Funkcja przelicza sterowanie z aparatury +-1000 na radiany z odpowiednim współpczynnikiem skalującym
+  * @param[in]  radioChValue: wartośc z kanału radiowego
+  * @retval kąt wyrażony w radianach
+  */
+float Controler_RadioToAngle(signed int radioChValue){
+	return (float)radioChValue/1000.f*20.f/180.f*PI;
 }
 /**
   * @brief  Wątek procesu nadzorującego stany pracy całego systemu

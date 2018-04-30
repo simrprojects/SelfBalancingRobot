@@ -13,9 +13,9 @@
 typedef void* tMotorInterfaceHandler;
 typedef enum{eInactiveMode=0,eActiveMode}tMotorInterfaceMode;
 typedef struct{
-	int canId;
-	int numPolePairs;
-	int reversMode;/**<tryb pracy odwr�conej*/
+	unsigned int canId:11;
+	unsigned int numPolePairs:5;
+	unsigned int reversMode:1;/**<tryb pracy odwr�conej*/
 	tCAN2UARTHandle c2u;
 }tMotorInterfaceConfig;
 
