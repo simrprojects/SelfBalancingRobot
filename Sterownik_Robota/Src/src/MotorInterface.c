@@ -70,11 +70,7 @@ int MotorInterface_Init(tMotorInterfaceHandler *h,tMotorInterfaceConfig *cfg){
 	mi->angleOffset=0;
 	mi->currentRef=2100;
 	mi->mode = eInactiveMode;
-<<<<<<< HEAD
-	mi->revers = cfg->reversMode;
-=======
 	mi->reversMode = cfg->reversMode;
->>>>>>> branch 'master' of https://github.com/simrprojects/SelfBalancingRobot
 	//tworze w�tek kontrolny
 	xTaskCreate(MotorInterface_Task,"motorInterface",256,mi,4,&mi->task);
 	*h=mi;
@@ -102,15 +98,10 @@ int MotorInterface_SetMode(tMotorInterfaceHandler h,tMotorInterfaceMode mode){
 int MotorInterface_UpdateControl(tMotorInterfaceHandler h,int ctrl){
 	signed short uctrl;
 	if(MIH()->mode==eActiveMode){
-<<<<<<< HEAD
-		if(MIH()->revers){
-			uctrl = -uctrl;
-=======
 		if(MIH()->reversMode){
 			uctrl = -ctrl;
 		}else{
 			uctrl = ctrl;
->>>>>>> branch 'master' of https://github.com/simrprojects/SelfBalancingRobot
 		}
 		MotorInterface_SendMessage(MIH()->com,4,&uctrl,2);
 	}

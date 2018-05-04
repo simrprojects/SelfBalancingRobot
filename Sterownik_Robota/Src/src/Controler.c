@@ -173,8 +173,8 @@ int Controler_Init(void){
 	controler.supervisor.leftMotorActive=0;
 	controler.supervisor.rightMotorActive=0;
 	controler.pid.k_pitch=2500.f/45.f*180.f/PI;//przelicznik wzmocnienia proporcjonalnego. odchylenie o 45 stopni powoduje wysterowanie silników na 50%
-	controler.pid.k_dpitch=1000.f/100.f*180.f/PI;//wzmocnenie uchybu predkości: 20% wysterowania przy 100stopniach/sekundę
-	controler.pid.k_ipitch=80;//wzmocnienie uchybu całki odchyłki kąt
+	controler.pid.k_dpitch=200.f/100.f*180.f/PI;//wzmocnenie uchybu predkości: 20% wysterowania przy 100stopniach/sekundę
+	controler.pid.k_ipitch=300;//wzmocnienie uchybu całki odchyłki kąt
 	Integrator_SetTime(&controler.pid.pitch_integrator,0.005);
 	//tworze wątek kontrolera
 	xTaskCreate(Controler_Task,"controller",256,&controler,5,&controler.task);
@@ -235,14 +235,8 @@ void Controler_Task(void* ptr){
 		case eSystem_MotorInit:/*<tryb inicjacji silników i oczekiwania na przełączenie w tryb pracy aktywnej*/
 			break;
 		case eSystem_ReadyToWork:/*<tryb aktywnej pracy silników bez stabilizacji robota*/
-<<<<<<< HEAD
-			Controler_PitchControlLoop(Controler_RadioToAngle(/*Radio_GetValue(Channel_LeftVertical)*/0),0);
+			Controler_PitchControlLoop(Controler_RadioToAngle(Radio_GetValue(Channel_LeftVertical)),0);
 			/*cnt++;
-=======
-			//wykonuje obliczenia pętli regulcyjnej
-			Controler_ControlProcesUpdate();
-			cnt++;
->>>>>>> branch 'master' of https://github.com/simrprojects/SelfBalancingRobot
 			if(cnt>=2){
 				//wysyłam sterownaie na CAN
 				MotorInterface_UpdateControl(controler.leftMotor,Radio_GetValue(Channel_LeftVertical));
@@ -320,7 +314,7 @@ float Controler_VelocityControlLoop(velocity_sp){
   * @retval kąt wyrażony w radianach
   */
 float Controler_RadioToAngle(signed int radioChValue){
-	return (float)radioChValue/1000.f*20.f/180.f*PI;
+	return (float)radioChValue/1000.f*15.f/180.f*PI;
 }
 /**
   * @brief  Wątek procesu nadzorującego stany pracy całego systemu
