@@ -6,7 +6,10 @@
 #ifndef LINEARMODULES_H_
 #define LINEARMODULES_H_
 
+<<<<<<< HEAD
 
+=======
+>>>>>>> branch 'master' of https://github.com/simrprojects/SelfBalancingRobot
 /**\brief Modu�z� dostarcza podstawowych blok�z�w dynamicznych liniowych, jak obbiekt inercyjny,
  * ca�z�kuj�z�cy r�z�niczkuj�z�cy czy PID
  */
