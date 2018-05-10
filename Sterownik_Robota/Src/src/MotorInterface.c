@@ -281,7 +281,7 @@ void MotorInterface_ParseNewMeasurement(tMotorInterface *mi,char* buffer,int siz
 			mi->measurements.rpm = *(signed short*)&buffer[4];
 		}
 		tmp = *(unsigned short*)&buffer[6];
-		mi->measurements.angle = (int)(tmp - mi->angleOffset)*360/(6*15);
+		mi->measurements.angle = (signed short)(tmp - mi->angleOffset);
 	}
 }
 /**

@@ -23,7 +23,7 @@ typedef struct{
 	float voltage;
 	float current;
 	float rpm;
-	float angle;
+	signed short angle;
 }tMotorMeasuremenets;
 
 

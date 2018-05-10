@@ -61,6 +61,7 @@ typedef struct{
 		int leftMotorActive:1;
 		int rightMotorActive:1;
 		tSupervisorSystemState state;
+		float voltage;
 	}supervisor;
 	struct{
 		float k_pitch;/*<espółczynnik wzmocenienia od odchyłki kąt*/
@@ -72,6 +73,21 @@ typedef struct{
 		float cv;
 		tIntegrator pitch_integrator;
 	}pid;
+	struct{
+		signed short lastAngleLeftMotor;
+		signed short lastAngleRightMotor;
+		float leftWheelAngle;
+		float rightWheelAngle;
+		tIntegrator integrator;
+		float k_w;/**<współczynnik wzmocenienia od odchyłi prędkości*/
+		float k_a;/**<współczynnik wzmocenieina od odchyłki kąta*/
+		float max_cv_a;/**<maksymalny zakres sterowania od odchyłki kąta*/
+	}yawController;
+	struct{
+		float r;/**<promień koła*/
+		float L;/**<rozstaw kół*/
+		float kw;/**<współczynnik stałej elektrycznej silnika V/rad/s*/
+	}robotParams;
 }tControler;
 /* Private define ------------------------------------------------------------*/
 /* Private macro -------------------------------------------------------------*/
@@ -176,6 +192,16 @@ int Controler_Init(void){
 	controler.pid.k_dpitch=200.f/100.f*180.f/PI;//wzmocnenie uchybu predkości: 20% wysterowania przy 100stopniach/sekundę
 	controler.pid.k_ipitch=300;//wzmocnienie uchybu całki odchyłki kąt
 	Integrator_SetTime(&controler.pid.pitch_integrator,0.005);
+
+	controler.robotParams.r=0.197f/2;
+	controler.robotParams.L=0.4f;
+	controler.robotParams.kw=12.f/(300.f/60.f*2.f*PI);
+
+	controler.yawController.k_w=0.5;
+	controler.yawController.k_a=0.3;
+	controler.yawController.max_cv_a=30.f/180.f*PI;
+	Integrator_SetTime(&controler.yawController.integrator,0.005);
+
 	//tworze wątek kontrolera
 	xTaskCreate(Controler_Task,"controller",256,&controler,5,&controler.task);
 	//tworzę wątek zarządzający pracą systemu
@@ -297,8 +323,54 @@ float Controler_PitchControlLoop(float pitch_sp,float omegaZ_sp){
   * @param[in]  pitch_cv: wartosc sterująca wypracowana przez regulator kąta Pitch
   * @retval None
   */
-void Controler_YawControlLoop(float omega_yaw_sp,float pitch_cv){
+void Controler_YawControlLoop(float omega_yaw_sp,float pitch_cv,int *leftMotor,int *rightMotor){
+	float dAngleLeft,dAngleRight,wwl,wwr,wp,ew,cv_w,cv_a,cv,dU1,dU2,ul,up;
+	signed char fb;
 
+	//odczytuje przyrost kąta i skaluje go do rdianów
+	dAngleLeft = (controler.leftMotorMeasurement->angle-controler->yawController.lastAngleLeftMotor)*2.f*PI/(6*15);
+	controler->yawController.lastAngleLeftMotor=controler.leftMotorMeasurement->angle;
+	controler->yawController.leftWheelAngle+=dAngleLeft;
+	//ograniczam zakres zmian kąta do +- PI
+	if(controler->yawController.leftWheelAngle>PI){
+		controler->yawController.leftWheelAngle-=PI;
+	}else if(controler->yawController.leftWheelAngle<PI){
+		controler->yawController.leftWheelAngle+=PI;
+	}
+	//odczytuje prędkości kół i skaluje do rad/s
+	wwl = controler.leftMotorMeasurement->rpm/60.f*2*PI;
+	wwr = controler.rightMotorMeasurement->rpm/60.f*2*PI;
+	//przeliczam to na prędkośc platformy
+	wp=controler.robotParams.r/controler.robotParams.L*(wwr-wwl);
+	//obliczam ochyłkę
+	ew = omega_yaw_sp-wp;
+	//wyznaczam sterowanie
+	cv_w = ew*controler.yawController.k_w;
+	cv_a = Integrator_Execute(&controler.yawController.integrator,&fb,ew);
+	//ograniczam zakres oddziaływania kąta
+	if(cv_a>controler.yawController.max_cv_a){
+		cv_a = controler.yawController.max_cv_a;
+		fb = 1;
+	}else if(cv_a<-controler.yawController.max_cv_a){
+		cv_a = -controler.yawController.max_cv_a;
+		fb = -1;
+	}else{
+		fb=0;
+	}
+	//uwzględniam współczynnik intensywności oddziaływania sterowania od odchyłki kąta
+	cv_a*=controler.yawController.k_a;
+	//wyznaczam całkowite wysterowanie
+	cv = cv_a+cv_w+omega_yaw_sp;
+	//skaluje sterowanie na różnice napięc Up-Ul=dU1=w*L*kw/r
+	dU1 = cv*controler.robotParams.L/controler.robotParams.r*controler.robotParams.kw;
+	//sterowanie od wychyłu
+	dU2 = 2*pitch_cv;
+	//wyznaczam zadane napiecia
+	up = 0.5f*(dU2+dU1);
+	ul = 0.5f*(dU2-dU1);
+	//przeskalowuje zadane napiecia na wysterowanie silnika +-1000
+	*leftMotor=ul/controler.supervisor.voltage*1000;
+	*rightMotor=up/controler.supervisor.voltage*1000;
 }
 /**
   * @brief  Pętla sterująca prędkością segwaya. Pętla wyracowuje wartośc zadaną dla regulatora kąta
