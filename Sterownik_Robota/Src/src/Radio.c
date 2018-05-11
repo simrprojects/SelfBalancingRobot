@@ -176,6 +176,7 @@ void Radio_Task(void* ptr){
   */
 void RadioScaleChannels(tRadio *radio){
 	signed int v;
+#define dead_zone 20
 	//pierwsze cztery kanaly skalowane sa od -1000 do 1000
 	for(int i=0;i<4;i++){
 		v = radio->value[i];
@@ -185,7 +186,17 @@ void RadioScaleChannels(tRadio *radio){
 		}else if(v>2000){
 			v = 2000;
 		}
-		radio->convertedValue[i]=(v-1500)*2;
+		v=(v-1500)*2;
+		//strefa martwa
+		if(v>dead_zone){
+			v = v-dead_zone;
+		}else if(v>-dead_zone){
+			v = 0;
+		}else{
+			v = v+dead_zone;
+		}
+		radio->convertedValue[i]=v;
+
 	}
 	//kolejne kanaly skalowane sa od 0 do 1000
 	//to do
