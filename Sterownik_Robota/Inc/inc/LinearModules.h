@@ -104,7 +104,7 @@ float Integrator_Execute(tIntegrator* integrator, signed char feedBack, float in
 void Integrator_Reset(tIntegrator* integrator);
 void Integrator_SetFeadBackValue(tIntegrator* integrator, unsigned short val);
 void Integrator_SetOutputState(tIntegrator* integrator,float in);
-void Delay_Init(tDelay * delay,float time,float tp);
+void xDelay_Init(tDelay * delay,float time,float tp);
 float xDelay_Execute(tDelay * delay,float in);
 void xDelay_Reset(tDelay * delay);
 void xDelay_SetState(tDelay * delay, float outValue);

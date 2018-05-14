@@ -26,6 +26,7 @@
 #include "Radio.h"
 #include "arm_math.h"
 #include "LinearModules.h"
+#include "LipoGuard.h"
 /* Private typedef -----------------------------------------------------------*/
 typedef enum{eSupervisorLeftMotorInactive=0,/*<lewy silnik w trybie nieaktywnym*/
 			eSupervisorRightMotorInactive,/*<prawy silnik w trybie nieaktywnym*/
@@ -57,6 +58,7 @@ typedef struct{
 	xTaskHandle task;
 	xTaskHandle supervisorTask;
 	xQueueHandle supervisorMsgQueue;
+	tLipoGuardHandler lipoGuard;
 	struct{
 		int leftMotorActive:1;
 		int rightMotorActive:1;
@@ -187,6 +189,14 @@ int Controler_Init(void){
 	if(MotorInterface_Init(&controler.rightMotor,&mic)){
 		return 3;
 	}
+	//inicjuje lipoGuarda - moduł ochrony pakietu
+	tLipoGuardConfig lgCfg;
+	lgCfg.numOfCells=4;
+	lgCfg.refreshRate = 40;//40Hz
+	lgCfg.warningLevel=3.4f;//napięcie ostrzegawcze na jedną cele
+	lgCfg.errorLevel = 3.2f;//poziom napięcia informujący o konieczności naładowania pakietu
+	lgCfg.histeresis = 0.15f;//histereza zapobiega częstym przełączeniom w okolicach poziomów granicznych
+	controler.lipoGuard = LipoGuard_Init(&lgCfg);
 	//wysyłam komendę deinicjującą
 	//MotorInterface_SetMode(controler.leftMotor,eInactiveMode);
 	//MotorInterface_SetMode(controler.rightMotor,eInactiveMode);
@@ -311,6 +321,8 @@ void Controler_Task(void* ptr){
 				MotorInterface_UpdateControl(controler.rightMotor,rm);
 				cnt=0;
 			}
+			//uaktualniam lipoGuarda
+			LipoGuard_Update(controler.lipoGuard,(controler.leftMotorMeasurement->voltage+controler.rightMotorMeasurement->voltage)/2.f);
 			break;
 		case eSystem_RobotStabilisation:/*<tryb pełnej stabilizacji robota*/
 			break;
@@ -609,6 +621,21 @@ void MotorInterface_NewMotorState(tMotorInterfaceHandler h,tMotorInterfaceMode m
 		}
 	}else{
 		//bład
+	}
+}
+/**
+  * @brief  Funkcja typu CallBack wywoływana przez moduł LipoGuard przy osiągnięciu nowego stanu pakietu
+  * @param[in]  None
+  * @retval None
+  */
+void LipoGuard_NewStateCallBack(tLipoGuardHandler h,tLipoGuardBateryState state){
+	switch(state){
+	case eLipoOk:
+		break;
+	case eLipoWarning:
+		break;
+	case eLipoDischarged:
+		break;
 	}
 }
 /**
