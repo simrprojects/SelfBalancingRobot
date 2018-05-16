@@ -159,6 +159,9 @@ int Controler_Init(void){
 	//aktywuje timer od pomiarów z radioodbiornika
 	HAL_TIM_Base_Start(&htim10);
 	HAL_TIM_IC_Start_IT(&htim10,TIM_CHANNEL_1);
+	//aktywuje timer do generowania sygnalow ostrzegawczych
+	HAL_TIM_Base_Start(&htim8);
+	HAL_TIM_PWM_Start(&htim8,TIM_CHANNEL_3);
 	//inicjuje moduł logera
 	logCfg.dtms=20;
 	logCfg.maxNumberOfParams=40;
@@ -631,10 +634,15 @@ void MotorInterface_NewMotorState(tMotorInterfaceHandler h,tMotorInterfaceMode m
 void LipoGuard_NewStateCallBack(tLipoGuardHandler h,tLipoGuardBateryState state){
 	switch(state){
 	case eLipoOk:
+		TIM8->CCR3=0;
 		break;
 	case eLipoWarning:
+		TIM8->CCR3=1000;//impuls 0.1s i okres 1s
+		TIM8->ARR = 10000;
 		break;
 	case eLipoDischarged:
+		TIM8->CCR3=3000;//impuls 0.3s i okres 0.5s
+		TIM8->ARR = 5000;
 		break;
 	}
 }
