@@ -200,8 +200,9 @@ void USART1_IRQHandler(void)
 {
 	BaseType_t xHigherPriorityTaskWoken;
 	char cIn;
+	unsigned int s = USART1->ISR;
 
-	if(USART1->ISR&(0x1<<5)){
+	if(s&USART_ISR_RXNE && USART1->CR1 & USART_CR1_RXNEIE){
 		
 		/* We have not woken a task at the start of the ISR. */
 		xHigherPriorityTaskWoken = pdFALSE;
@@ -215,7 +216,30 @@ void USART1_IRQHandler(void)
 				taskYIELD();
 		}
 	}
+	if(s&USART_ISR_TXE && USART1->CR1 & USART_CR1_TXEIE){
+		xHigherPriorityTaskWoken = pdFALSE;
+		if(xQueueReceiveFromISR(osUsartTab[0].tx,&cIn,&xHigherPriorityTaskWoken)==pdTRUE){
+			USART1->TDR = *(unsigned char*)&cIn;
+			if( xHigherPriorityTaskWoken ){
+					taskYIELD();
+			}
+		}else{
+			CLEAR_BIT(USART1->CR1, USART_CR1_TXEIE);
+			if(osUsartTab[0].halfDuplex){
+				//aktywuje przerwania końca transmisji w celu wyłaczenia nadajnika
+				SET_BIT(USART1->CR1, USART_CR1_TCIE);
+			}
+		}
+	}
+	if(s&USART_ISR_TC && USART1->CR1 & USART_CR1_TCIE){
+
+		USART1->ICR |= USART_ICR_TCCF;
+		CLEAR_BIT(USART1->CR1, USART_CR1_TCIE);
+		CLEAR_BIT(USART1->CR1, USART_CR1_TE);//wylączam nadajnik
+		SET_BIT(USART1->CR1, USART_CR1_RE);//właczam odbiornika
+	}
 	USART1->ISR = 0;
+	USART1->ICR |= 0xFFFF;
 	//HAL_NVIC_ClearPendingIRQ(USART1_IRQn );
 }
 /**
@@ -254,7 +278,7 @@ void USART3_IRQHandler(void)
 	BaseType_t xHigherPriorityTaskWoken;
 	char cIn;
 
-	if(USART3->ISR&(0x1<<5)){
+	if(USART3->ISR&USART_ISR_RXNE && USART3->CR1 & USART_CR1_RXNEIE){
 
 		/* We have not woken a task at the start of the ISR. */
 		xHigherPriorityTaskWoken = pdFALSE;
@@ -281,7 +305,7 @@ void USART6_IRQHandler(void)
 	char cIn;
 	unsigned int s = USART6->ISR;
 
-	if(s&(0x1<<5)){
+	if(s&USART_ISR_RXNE && USART6->CR1 & USART_CR1_RXNEIE){
 
 		/* We have not woken a task at the start of the ISR. */
 		xHigherPriorityTaskWoken = pdFALSE;
@@ -295,7 +319,7 @@ void USART6_IRQHandler(void)
 				taskYIELD();
 		}
 	}
-	if(s&0x1<<7){
+	if(s&USART_ISR_TXE && USART6->CR1 & USART_CR1_TXEIE){
 		xHigherPriorityTaskWoken = pdFALSE;
 		if(xQueueReceiveFromISR(osUsartTab[5].tx,&cIn,&xHigherPriorityTaskWoken)==pdTRUE){
 			USART6->TDR = *(unsigned char*)&cIn;
@@ -310,11 +334,13 @@ void USART6_IRQHandler(void)
 			}
 		}
 	}
-	if(s&USART_CR1_TCIE){
+	if(s&USART_ISR_TC && USART6->CR1 & USART_CR1_TCIE){
+		USART6->ICR |= USART_ICR_TCCF;
 		CLEAR_BIT(USART6->CR1, USART_CR1_TCIE);
 		CLEAR_BIT(USART6->CR1, USART_CR1_TE);//wylączam nadajnik
 		SET_BIT(USART6->CR1, USART_CR1_RE);//właczam odbiornika
 	}
 	USART6->ISR = 0;
+	USART6->ICR |= 0xFFFF;
 }
 

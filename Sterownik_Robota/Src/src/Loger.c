@@ -62,6 +62,9 @@ int Loger_Create(tLogerHandler *h,tLogerCfg *cfg,tLogerStreamerDriver *drv){
   * @retval None
   */
 int Loger_AddParams(tLogerHandler h,void* paramRef,char* paramName,tLogerParamType paramType){
+	if(h==0){
+		return 1;
+	}
 	//sprawdzam czy jest jeszcze wolne miejsce
 	if(HLOGER()->maxNumberOfParams>HLOGER()->paramsCounter){
 		int i = HLOGER()->paramsCounter;
@@ -81,6 +84,9 @@ int Loger_AddParams(tLogerHandler h,void* paramRef,char* paramName,tLogerParamTy
   * @retval None
   */
 int Loger_OpenSesion(tLogerHandler h){
+	if(h==0){
+		return 1;
+	}
 	tLogerRequest req;
 	req = eLR_OpenSesjon;
 	if(xQueueSend(HLOGER()->requestQueue,&req,20)==pdTRUE){
@@ -95,6 +101,9 @@ int Loger_OpenSesion(tLogerHandler h){
   * @retval None
   */
 int Loger_CloseSesion(tLogerHandler h){
+	if(h==0){
+	return 1;
+	}
 	tLogerRequest req;
 	req = eLR_CloseSesjon;
 	if(xQueueSend(HLOGER()->requestQueue,&req,20)==pdTRUE){

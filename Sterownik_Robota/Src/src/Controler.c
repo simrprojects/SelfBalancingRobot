@@ -14,6 +14,7 @@
 #include "task.h"
 #include "queue.h"
 #include "MotorInterface.h"
+#include "MotorInterfaceUart.h"
 #include "MPU/rx_data.h"
 #include "MPU/MPU6050.h"
 #include "OSCan.h"
@@ -47,10 +48,9 @@ typedef struct{
 	tMPUHandler hmpu;
 	tCAN2UARTHandle c2uf;
 	OsUARTHandler huart;
-	OsUARTHandler huartMotorLeft;
-	OsUARTHandler huartMotorRight;
-	tMotorInterfaceHandler leftMotor;
-	tMotorInterfaceHandler rightMotor;
+
+	tMotorInterfaceUartHandler leftMotor;
+	tMotorInterfaceUartHandler rightMotor;
 	tMotorMeasuremenets *leftMotorMeasurement;
 	tMotorMeasuremenets *rightMotorMeasurement;
 	tMPUMeasuremenet mmpu;
@@ -138,24 +138,25 @@ int Controler_Init(void){
 	tMPUConfiguration mpucfg;
 	tCanInit cfg;
 	tCAN2UARTConfig c2uc;
-	tMotorInterfaceConfig mic;
-	tLogerCfg logCfg;
+	tMotorInterfaceUartConfig mic;
+	//tLogerCfg logCfg;
 	//tUartStreamConfig uartStreamCfg;
-	tLabViewUartStreamConfig lvUartStreamCfg;
+	//tLabViewUartStreamConfig lvUartStreamCfg;
 	//inicjuje modu� CAN
-	cfg.rxBufferSize=30;
+	/*cfg.rxBufferSize=30;
 	OSCan_Init(&hcan1,&cfg);
 	//inicjuje modu� UART2CAN
 	c2uc.canFifoNumber=1;
 	c2uc.maxNumberOfChannels=3;
 	if(CAN2UART_Init(&controler.c2uf,&c2uc)){
 		return 1;
-	}
+	}*/
 
 	//inicjuje UART
-	if(OsUART_Init(&controler.huart,&huart1)){
+	/*if(OsUART_Init(&controler.huart,&huart1)){
 		return 4;
-	}
+	}*/
+
 	//inicjuje moduł radioodbornika
 	controler.radio=Radio_Init(8);
 	controler.radioMeasuremenets = Radio_GetChannelMeasurements();
@@ -166,33 +167,32 @@ int Controler_Init(void){
 	HAL_TIM_Base_Start(&htim8);
 	HAL_TIM_PWM_Start(&htim8,TIM_CHANNEL_3);
 	//inicjuje moduł logera
-	logCfg.dtms=20;
+	/*logCfg.dtms=20;
 	logCfg.maxNumberOfParams=40;
-	logCfg.memoryPoolSize=0;
+	logCfg.memoryPoolSize=0;*/
 
 	/*uartStreamCfg.bufferPtr=0;
 	uartStreamCfg.bufferSize = 512;
 	uartStreamCfg.huart = controler.huart;*/
 
-	lvUartStreamCfg.bufferPtr=0;
+	/*lvUartStreamCfg.bufferPtr=0;
 	lvUartStreamCfg.bufferSize = logCfg.maxNumberOfParams*4+7;
-	lvUartStreamCfg.huart = controler.huart;
+	lvUartStreamCfg.huart = controler.huart;*/
 	//Loger_Create(&controler.loger,&logCfg,UartLogStreamer_Init(&uartStreamCfg));
-	Loger_Create(&controler.loger,&logCfg,LabViewUartStreamer_Init(&lvUartStreamCfg));
+	//Loger_Create(&controler.loger,&logCfg,LabViewUartStreamer_Init(&lvUartStreamCfg));
+	controler.loger=0;
 
 	//inicjuje modu� interfejsu silnik�w
-	mic.c2u = controler.c2uf;
-	mic.canId = 1;
 	mic.numPolePairs = 15;
 	mic.reversMode = 0;
-	if(MotorInterface_Init(&controler.leftMotor,&mic)){
+	mic.uart = &huart1;
+	if(MotorInterfaceUart_Init(&controler.leftMotor,&mic)){
 		return 2;
 	}
-	mic.c2u = controler.c2uf;
-	mic.canId = 2;
 	mic.numPolePairs = 15;
 	mic.reversMode = 1;
-	if(MotorInterface_Init(&controler.rightMotor,&mic)){
+	mic.uart = &huart6;
+	if(MotorInterfaceUart_Init(&controler.rightMotor,&mic)){
 		return 3;
 	}
 	//inicjuje lipoGuarda - moduł ochrony pakietu
@@ -258,8 +258,8 @@ int Controler_Init(void){
   * @retval None
   */
 void Controler_Task(void* ptr){
-	int lm,rm,cnt=0;
-	float pitch,v;
+	int lm,rm=0;
+	float v;
 	//dodaje parametry do logowania
 	Loger_AddParams(controler.loger,&controler.mmpu.rpy[0],"roll",eParamTypeSGL);
 	Loger_AddParams(controler.loger,&controler.mmpu.rpy[1],"pitch",eParamTypeSGL);
@@ -321,13 +321,13 @@ void Controler_Task(void* ptr){
 			//Controler_YawControlLoop(Controler_RadioToOmega(Radio_GetValue(Channel_LeftHorizontal)),pitch,&lm,&rm);
 			Controler_YawControlLoop(Controler_RadioToOmega(Radio_GetValue(Channel_LeftHorizontal)),v,&lm,&rm);
 
-			cnt++;
-			if(cnt>=2){
+			/*cnt++;
+			if(cnt>=2){*/
 				//wysyłam sterownaie na CAN
-				MotorInterface_UpdateControl(controler.leftMotor,lm);
-				MotorInterface_UpdateControl(controler.rightMotor,rm);
-				cnt=0;
-			}
+				MotorInterfaceUart_UpdateControl(controler.leftMotor,lm);
+				MotorInterfaceUart_UpdateControl(controler.rightMotor,rm);
+			/*	cnt=0;
+			}*/
 			//uaktualniam lipoGuarda
 			LipoGuard_Update(controler.lipoGuard,(controler.leftMotorMeasurement->voltage+controler.rightMotorMeasurement->voltage)/2.f);
 			break;
@@ -510,7 +510,7 @@ void Controler_SupervisorTask(void* ptr){
 				//sprawdzam, czy prawy silnik jest w trybie aktywnym
 				if(controler.supervisor.rightMotorActive){
 					//pravy silnik jest aktywny, więc go deaktywuje
-					MotorInterface_SetMode(controler.rightMotor,eInactiveMode);
+					MotorInterfaceUart_SetMode(controler.rightMotor,eInactiveMode);
 					//ustawiam stan głownej maszyny stanowej
 					Supervisor_SwitchToNewState(eSystem_MotorInit);
 				}else{
@@ -523,7 +523,7 @@ void Controler_SupervisorTask(void* ptr){
 				//sprawdzam, czy lewy silnik jest w trybie aktywnym
 				if(controler.supervisor.leftMotorActive){
 					//pravy silnik jest aktywny, więc go deaktywuje
-					MotorInterface_SetMode(controler.leftMotor,eInactiveMode);
+					MotorInterfaceUart_SetMode(controler.leftMotor,eInactiveMode);
 					//ustawiam stan głownej maszyny stanowej
 					Supervisor_SwitchToNewState(eSystem_MotorInit);
 					//czekam
@@ -587,8 +587,8 @@ void Supervisor_SwitchToNewState(tSupervisorSystemState newState){
 	case eSystem_InternalInit:
 		break;
 	case eSystem_MotorInit:/*<tryb inicjacji silników i oczekiwania na przełączenie w tryb pracy aktywnej*/
-		MotorInterface_SetMode(controler.leftMotor,eActiveMode);
-		MotorInterface_SetMode(controler.rightMotor,eActiveMode);
+		MotorInterfaceUart_SetMode(controler.leftMotor,eActiveMode);
+		MotorInterfaceUart_SetMode(controler.rightMotor,eActiveMode);
 		LedIndicator_SetState(controler.ledIndicator,eLedIndicator_MotorInit);
 		break;
 	case eSystem_ReadyToWork:/*<tryb aktywnej pracy silników bez stabilizacji robota*/
@@ -598,8 +598,8 @@ void Supervisor_SwitchToNewState(tSupervisorSystemState newState){
 		LedIndicator_SetState(controler.ledIndicator,eLedIndicator_RobotStabilisation);
 		break;
 	case eSystem_FaultState:/*<awaria podsystemu czujników lub silników*/
-		MotorInterface_SetMode(controler.leftMotor,eInactiveMode);
-		MotorInterface_SetMode(controler.rightMotor,eInactiveMode);
+		MotorInterfaceUart_SetMode(controler.leftMotor,eInactiveMode);
+		MotorInterfaceUart_SetMode(controler.rightMotor,eInactiveMode);
 		LedIndicator_SetState(controler.ledIndicator,eLedIndicator_FaultState);
 		break;
 	}
