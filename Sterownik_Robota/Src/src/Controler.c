@@ -9,6 +9,7 @@
   */
 
 /* Includes ------------------------------------------------------------------*/
+#include <OsUART.h>
 #include "FreeRTOS.h"
 #include "task.h"
 #include "queue.h"
@@ -16,7 +17,6 @@
 #include "MPU/rx_data.h"
 #include "MPU/MPU6050.h"
 #include "OSCan.h"
-#include "OSUart.h"
 #include "can.h"
 #include "tim.h"
 #include "usart.h"
@@ -27,6 +27,7 @@
 #include "arm_math.h"
 #include "LinearModules.h"
 #include "LipoGuard.h"
+
 /* Private typedef -----------------------------------------------------------*/
 typedef enum{eSupervisorLeftMotorInactive=0,/*<lewy silnik w trybie nieaktywnym*/
 			eSupervisorRightMotorInactive,/*<prawy silnik w trybie nieaktywnym*/
@@ -46,6 +47,8 @@ typedef struct{
 	tMPUHandler hmpu;
 	tCAN2UARTHandle c2uf;
 	OsUARTHandler huart;
+	OsUARTHandler huartMotorLeft;
+	OsUARTHandler huartMotorRight;
 	tMotorInterfaceHandler leftMotor;
 	tMotorInterfaceHandler rightMotor;
 	tMotorMeasuremenets *leftMotorMeasurement;
@@ -236,7 +239,7 @@ int Controler_Init(void){
 	controler.yawController.ctrl2w=0.5f*2.f*PI/1000.f;/**<współczynnik skalujący aparatura do w_yaw */
 	Integrator_SetTime(&controler.yawController.integrator,0.005);
 
-	controler.velocityController.ctrl2v=0.5f/1000.f;
+	controler.velocityController.ctrl2v=1.0f/1000.f;
 	controler.velocityController.k_s=5*PI/180;
 	controler.velocityController.k_v=10*PI/180;
 	controler.velocityController.max_e_s=1;
@@ -312,10 +315,11 @@ void Controler_Task(void* ptr){
 			break;
 		case eSystem_ReadyToWork:/*<tryb aktywnej pracy silników bez stabilizacji robota*/
 			v=Controler_VelocityControlLoop(Controler_RadioToVelocity(-Radio_GetValue(Channel_LeftVertical)));
-			pitch=Controler_PitchControlLoop(-v,0);
+			//pitch=Controler_PitchControlLoop(-v,0);
 			//pitch=Controler_PitchControlLoop(Controler_RadioToAngle(Radio_GetValue(Channel_LeftVertical)),0);
 			//pitch = (float)Radio_GetValue(Channel_LeftVertical)/1000.f*controler.supervisor.voltage;
-			Controler_YawControlLoop(Controler_RadioToOmega(Radio_GetValue(Channel_LeftHorizontal)),pitch,&lm,&rm);
+			//Controler_YawControlLoop(Controler_RadioToOmega(Radio_GetValue(Channel_LeftHorizontal)),pitch,&lm,&rm);
+			Controler_YawControlLoop(Controler_RadioToOmega(Radio_GetValue(Channel_LeftHorizontal)),v,&lm,&rm);
 
 			cnt++;
 			if(cnt>=2){

@@ -9,6 +9,7 @@
 #define INC_UARTLOGSTREAMER_H_
 
 #include "Loger.h"
+#include "OsUart.h"
 
 typedef struct{
 	OsUARTHandler huart;

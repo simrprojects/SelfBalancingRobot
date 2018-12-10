@@ -9,12 +9,13 @@
   */
 
 /* Includes ------------------------------------------------------------------*/
+#include <OsUART.h>
 #include "FreeRTOS.h"
 #include "usart.h"
 #include "stdio.h"
 #include "string.h"
-#include "OSUart.h"
 #include "UartLogStreamer.h"
+
 /* Private typedef -----------------------------------------------------------*/
 typedef struct{
 	OsUARTHandler huart;
